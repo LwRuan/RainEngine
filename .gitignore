@@ -2,3 +2,5 @@
 .xmake
 bin
 build
+vsxmake2019
+compile_commands.json
