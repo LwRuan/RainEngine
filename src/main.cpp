@@ -14,5 +14,6 @@ int main() {
 #endif
   App app;
   app.Init();
+  app.MainLoop();
   app.CleanUp();
 }

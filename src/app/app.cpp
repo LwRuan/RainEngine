@@ -5,7 +5,23 @@
 #include "spdlog/spdlog.h"
 
 namespace Rain {
+App::App() {
+#ifdef NDEBUG
+  enable_validation_layers_ = false;
+#else
+  enable_validation_layers_ = true;
+#endif
+}
+
 void App::Init() {
+  {  // init window
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+    window = glfwCreateWindow(width_, height_, "Vulkan", nullptr, nullptr);
+  }
+
   if (enable_validation_layers_) {
     if (!CheckValidationLayerSupport()) {
       spdlog::error("validation layers requested, but not available");
@@ -31,7 +47,8 @@ void App::Init() {
       create_info.ppEnabledLayerNames = validation_layers_.data();
       VkDebugUtilsMessengerCreateInfoEXT debug_create_info{};
       debug_utils_ext_->GetCreateInfo(debug_create_info);
-      create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debug_create_info;
+      create_info.pNext =
+          (VkDebugUtilsMessengerCreateInfoEXT*)&debug_create_info;
     } else {
       create_info.enabledLayerCount = 0;
       create_info.pNext = nullptr;
@@ -48,19 +65,29 @@ void App::Init() {
       spdlog::debug("instance created");
     }
   }
+
   if (enable_validation_layers_) {  // create debug messenger
     if (debug_utils_ext_->Init(instance_) != VK_SUCCESS) {
       spdlog::error("debug messenger creation failed");
       CleanUp();
       exit(1);
-    }
-    else spdlog::debug("debug messenger created");
+    } else
+      spdlog::debug("debug messenger created");
+  }
+}
+
+void App::MainLoop() {
+  while (!glfwWindowShouldClose(window)) {
+    glfwPollEvents();
   }
 }
 
 void App::CleanUp() {
+  glfwDestroyWindow(window);
+  glfwTerminate();
+
   if (instance_) {
-    if(debug_utils_ext_) {
+    if (debug_utils_ext_) {
       debug_utils_ext_->Destroy(instance_);
       delete debug_utils_ext_;
     }
