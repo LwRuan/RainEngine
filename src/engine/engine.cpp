@@ -15,6 +15,15 @@ Engine::Engine() {
 }
 
 void Engine::Init() {
+  {  // init window
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    // glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+    window_ =
+        glfwCreateWindow(width_, height_, "Rain Engine", nullptr, nullptr);
+  }
+
   if (enable_validation_layers_) {
     if (!CheckValidationLayerSupport()) {
       spdlog::error("validation layers requested, but not available");
@@ -69,9 +78,20 @@ void Engine::Init() {
       spdlog::debug("debug messenger created");
   }
 
+  {  // create surface
+    VkResult result;
+    if ((result = glfwCreateWindowSurface(instance_, window_, nullptr,
+                                          &surface_)) != VK_SUCCESS) {
+      spdlog::error("{} window surface creation failed", result);
+      CleanUp();
+      exit(1);
+    } else
+      spdlog::debug("window surface created");
+  }
+
   {  // create physical device
     physical_deivce_ = new PhysicalDevice;
-    if (physical_deivce_->Init(instance_) != VK_SUCCESS) {
+    if (physical_deivce_->Init(instance_, surface_) != VK_SUCCESS) {
       spdlog::error("no GPU with Vulkan support found");
       CleanUp();
       exit(1);
@@ -81,14 +101,15 @@ void Engine::Init() {
   {  // create logical device
     device_ = new Device;
     VkResult result = VK_SUCCESS;
+    uint32_t graphics_queue_family, present_queue_family;
+    physical_deivce_->GetGraphicsPresentQueueFamily(graphics_queue_family,
+                                                    present_queue_family);
     if (enable_validation_layers_) {
-      result = device_->Init(physical_deivce_->device_,
-                             physical_deivce_->GetRequiredQueueFamily(),
-                             &validation_layers_);
+      result = device_->Init(physical_deivce_->device_, graphics_queue_family,
+                             present_queue_family, &validation_layers_);
     } else
-      result =
-          device_->Init(physical_deivce_->device_,
-                        physical_deivce_->GetRequiredQueueFamily(), nullptr);
+      result = device_->Init(physical_deivce_->device_, graphics_queue_family,
+                             present_queue_family, nullptr);
     if (result != VK_SUCCESS) {
       spdlog::error("logical device creation failed");
       CleanUp();
@@ -96,18 +117,10 @@ void Engine::Init() {
     } else
       spdlog::debug("logical device created");
   }
-
-  {  // init window
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-
-    window = glfwCreateWindow(width_, height_, "Vulkan", nullptr, nullptr);
-  }
 }
 
 void Engine::MainLoop() {
-  while (!glfwWindowShouldClose(window)) {
+  while (!glfwWindowShouldClose(window_)) {
     glfwPollEvents();
   }
 }
@@ -122,11 +135,15 @@ void Engine::CleanUp() {
       debug_utils_ext_->Destroy(instance_);
       delete debug_utils_ext_;
     }
+    if (surface_) {
+      spdlog::debug("window surface destroyed");
+      vkDestroySurfaceKHR(instance_, surface_, nullptr);
+    }
     vkDestroyInstance(instance_, nullptr);
     spdlog::debug("instance destroyed");
   }
   if (physical_deivce_) delete physical_deivce_;
-  glfwDestroyWindow(window);
+  glfwDestroyWindow(window_);
   glfwTerminate();
 }
 
@@ -158,6 +175,12 @@ std::vector<const char*> Engine::GetRequiredExtensions() {
   if (enable_validation_layers_) {
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
+  // glfw extensions
+  uint32_t glfw_extension_count = 0;
+  const char** glfw_extensions =
+      glfwGetRequiredInstanceExtensions(&glfw_extension_count);
+  extensions.insert(extensions.end(), glfw_extensions,
+                    glfw_extensions + glfw_extension_count);
   return extensions;
 }
 

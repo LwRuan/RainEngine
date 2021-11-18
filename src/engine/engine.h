@@ -1,3 +1,5 @@
+#pragma once
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -13,12 +15,12 @@ class Engine {
 
   uint32_t width_ = 800;
   uint32_t height_ = 600;
-  GLFWwindow* window = nullptr;
+  GLFWwindow* window_ = nullptr;
 
   VkInstance instance_ = VK_NULL_HANDLE;
-
   PhysicalDevice* physical_deivce_ = nullptr;
   Device* device_ = nullptr;
+  VkSurfaceKHR surface_ = VK_NULL_HANDLE;
 
   DebugUtilsEXT* debug_utils_ext_ = nullptr;
   bool enable_validation_layers_;
