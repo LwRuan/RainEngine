@@ -83,9 +83,6 @@ void App::MainLoop() {
 }
 
 void App::CleanUp() {
-  glfwDestroyWindow(window);
-  glfwTerminate();
-
   if (instance_) {
     if (debug_utils_ext_) {
       debug_utils_ext_->Destroy(instance_);
@@ -94,6 +91,8 @@ void App::CleanUp() {
     vkDestroyInstance(instance_, nullptr);
     spdlog::debug("instance destroyed");
   }
+  glfwDestroyWindow(window);
+  glfwTerminate();
 }
 
 bool App::CheckValidationLayerSupport() {
