@@ -1,11 +1,12 @@
-#include "app.h"
+#include "engine.h"
 
 #include <cstring>
+#include <iostream>
 
 #include "spdlog/spdlog.h"
 
 namespace Rain {
-App::App() {
+Engine::Engine() {
 #ifdef NDEBUG
   enable_validation_layers_ = false;
 #else
@@ -13,15 +14,7 @@ App::App() {
 #endif
 }
 
-void App::Init() {
-  {  // init window
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-
-    window = glfwCreateWindow(width_, height_, "Vulkan", nullptr, nullptr);
-  }
-
+void Engine::Init() {
   if (enable_validation_layers_) {
     if (!CheckValidationLayerSupport()) {
       spdlog::error("validation layers requested, but not available");
@@ -29,6 +22,7 @@ void App::Init() {
     }
     debug_utils_ext_ = new DebugUtilsEXT();
   }
+
   {  // create instance
     VkApplicationInfo app_info{};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -74,16 +68,56 @@ void App::Init() {
     } else
       spdlog::debug("debug messenger created");
   }
+
+  {  // create physical device
+    physical_deivce_ = new PhysicalDevice;
+    if (physical_deivce_->Init(instance_) != VK_SUCCESS) {
+      spdlog::error("no GPU with Vulkan support found");
+      CleanUp();
+      exit(1);
+    }
+  }
+
+  {  // create logical device
+    device_ = new Device;
+    VkResult result = VK_SUCCESS;
+    if (enable_validation_layers_) {
+      result = device_->Init(physical_deivce_->device_,
+                             physical_deivce_->GetRequiredQueueFamily(),
+                             &validation_layers_);
+    } else
+      result =
+          device_->Init(physical_deivce_->device_,
+                        physical_deivce_->GetRequiredQueueFamily(), nullptr);
+    if (result != VK_SUCCESS) {
+      spdlog::error("logical device creation failed");
+      CleanUp();
+      exit(1);
+    } else
+      spdlog::debug("logical device created");
+  }
+
+  {  // init window
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+    window = glfwCreateWindow(width_, height_, "Vulkan", nullptr, nullptr);
+  }
 }
 
-void App::MainLoop() {
+void Engine::MainLoop() {
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
   }
 }
 
-void App::CleanUp() {
+void Engine::CleanUp() {
   if (instance_) {
+    if (device_) {
+      device_->Destroy();
+      delete device_;
+    }
     if (debug_utils_ext_) {
       debug_utils_ext_->Destroy(instance_);
       delete debug_utils_ext_;
@@ -91,11 +125,12 @@ void App::CleanUp() {
     vkDestroyInstance(instance_, nullptr);
     spdlog::debug("instance destroyed");
   }
+  if (physical_deivce_) delete physical_deivce_;
   glfwDestroyWindow(window);
   glfwTerminate();
 }
 
-bool App::CheckValidationLayerSupport() {
+bool Engine::CheckValidationLayerSupport() {
   uint32_t layer_count;
   vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
   std::vector<VkLayerProperties> available_layers(layer_count);
@@ -116,7 +151,7 @@ bool App::CheckValidationLayerSupport() {
   return true;
 }
 
-std::vector<const char*> App::GetRequiredExtensions() {
+std::vector<const char*> Engine::GetRequiredExtensions() {
   // functional extensions
   std::vector<const char*> extensions(extensions_);
   // debug extensions

@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "app.h"
+#include "engine.h"
 #include "spdlog/spdlog.h"
 
 using namespace Rain;
@@ -12,8 +12,8 @@ int main() {
 #else
   spdlog::set_level(spdlog::level::debug);
 #endif
-  App app;
-  app.Init();
-  app.MainLoop();
-  app.CleanUp();
+  Engine engine;
+  engine.Init();
+  engine.MainLoop();
+  engine.CleanUp();
 }
