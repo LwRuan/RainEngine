@@ -26,7 +26,7 @@ class Engine {
   bool enable_validation_layers_;
   const std::vector<const char*> validation_layers_ = {
       "VK_LAYER_KHRONOS_validation"};
-  const std::vector<const char*> extensions_ = {};
+  const std::vector<const char*> instance_extensions_ = {};
 
   Engine();
   void Init();

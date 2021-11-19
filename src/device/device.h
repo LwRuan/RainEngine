@@ -14,7 +14,8 @@ class Device {  // one queue, if want multiple queues, derive this calss
   VkResult Init(VkPhysicalDevice physical_device,
                 uint32_t graphics_queue_family_index,
                 uint32_t present_queue_family_index,
-                const std::vector<const char*>* layers);
+                const std::vector<const char*>* layers,
+                const std::vector<const char*>* extensions);
   void Destroy();
 };
 };  // namespace Rain

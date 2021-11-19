@@ -92,10 +92,10 @@ void Engine::Init() {
   {  // create physical device
     physical_deivce_ = new PhysicalDevice;
     if (physical_deivce_->Init(instance_, surface_) != VK_SUCCESS) {
-      spdlog::error("no GPU with Vulkan support found");
       CleanUp();
       exit(1);
-    }
+    } else
+      spdlog::debug("physical device created");
   }
 
   {  // create logical device
@@ -106,10 +106,12 @@ void Engine::Init() {
                                                     present_queue_family);
     if (enable_validation_layers_) {
       result = device_->Init(physical_deivce_->device_, graphics_queue_family,
-                             present_queue_family, &validation_layers_);
+                             present_queue_family, &validation_layers_,
+                             &physical_deivce_->device_extensions_);
     } else
       result = device_->Init(physical_deivce_->device_, graphics_queue_family,
-                             present_queue_family, nullptr);
+                             present_queue_family, nullptr,
+                             &physical_deivce_->device_extensions_);
     if (result != VK_SUCCESS) {
       spdlog::error("logical device creation failed");
       CleanUp();
@@ -170,7 +172,7 @@ bool Engine::CheckValidationLayerSupport() {
 
 std::vector<const char*> Engine::GetRequiredExtensions() {
   // functional extensions
-  std::vector<const char*> extensions(extensions_);
+  std::vector<const char*> extensions(instance_extensions_);
   // debug extensions
   if (enable_validation_layers_) {
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);

@@ -29,15 +29,28 @@ VkBool32 PhysicalDevice::Init(VkInstance instance, VkSurfaceKHR surface) {
       device_scores[i] += 1000;
     }
     QueueFamilyIndices indices = FindQueueFamilies(device, surface, true);
-    if (!indices.IsComplete()) device_scores[i] = -1;
+    bool ext_supported = CheckDeviceExtensionSupport(device, true);
+    bool swap_chain_adequate = false;
+    if (ext_supported) {
+      SwapChainSupportDetails details =
+          QuerySwapChainSupport(device, surface, true);
+      swap_chain_adequate =
+          !details.formats_.empty() && !details.present_modes_.empty();
+    }
+    if ((!indices.IsComplete()) || (!ext_supported) || (!swap_chain_adequate))
+      device_scores[i] = -1;
   }
   int idx_device = std::distance(
       device_scores.begin(),
       std::max_element(device_scores.begin(), device_scores.end()));
-  if (device_scores[idx_device] < 0)  // no queue family supported
+  if (device_scores[idx_device] < 0) {
+    // no queue family+extension supported
+    spdlog::error("no GPU with sufficient Vulkan support");
     return VK_FALSE;
+  }
   device_ = physical_devices[idx_device];
   queue_family_indices_ = FindQueueFamilies(device_, surface, false);
+  swap_chain_support_details_ = QuerySwapChainSupport(device_, surface, false);
   spdlog::info("GPU{} picked", idx_device);
   return VK_SUCCESS;
 }
@@ -50,11 +63,10 @@ void PhysicalDevice::GetGraphicsPresentQueueFamily(
                         queue_family_indices_.present_family_.begin(),
                         queue_family_indices_.present_family_.end(),
                         std::back_inserter(intersect_family));
-  if(intersect_family.size()) {
+  if (intersect_family.size()) {
     graphics_queue_family = intersect_family[0];
     present_queue_family = graphics_queue_family;
-  }
-  else {
+  } else {
     graphics_queue_family = *queue_family_indices_.graphics_family_.begin();
     present_queue_family = *queue_family_indices_.present_family_.begin();
   }
@@ -90,9 +102,51 @@ PhysicalDevice::QueueFamilyIndices PhysicalDevice::FindQueueFamilies(
       flags += " present";
     }
     if (verbose)
-      spdlog::debug(" QueueFamily{} : count {},{}", i, queue_family.queueCount,
-                    flags);
+      spdlog::debug(" queue family {} : count {},{}", i,
+                    queue_family.queueCount, flags);
   }
   return indices;
 }
+
+bool PhysicalDevice::CheckDeviceExtensionSupport(VkPhysicalDevice device,
+                                                 bool verbose) {
+  uint32_t extension_count = 0;
+  vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count,
+                                       nullptr);
+  std::vector<VkExtensionProperties> available_extensions(extension_count);
+  vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count,
+                                       available_extensions.data());
+  std::set<std::string> required_extensions(device_extensions_.begin(),
+                                            device_extensions_.end());
+  for (const auto& extension : available_extensions) {
+    required_extensions.erase(extension.extensionName);
+  }
+  return required_extensions.empty();
+}
+
+PhysicalDevice::SwapChainSupportDetails PhysicalDevice::QuerySwapChainSupport(
+    VkPhysicalDevice device, VkSurfaceKHR surface, bool verbose) {
+  SwapChainSupportDetails details;
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface,
+                                            &details.capabilities_);
+
+  uint32_t format_count = 0;
+  vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, nullptr);
+  if (format_count != 0) {
+    details.formats_.resize(format_count);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count,
+                                         details.formats_.data());
+  }
+
+  uint32_t present_mode_count = 0;
+  vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface,
+                                            &present_mode_count, nullptr);
+  if (present_mode_count != 0) {
+    details.present_modes_.resize(present_mode_count);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(
+        device, surface, &present_mode_count, details.present_modes_.data());
+  }
+  return details;
+}
+
 };  // namespace Rain

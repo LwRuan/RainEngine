@@ -8,9 +8,12 @@ namespace Rain {
 VkResult Device::Init(VkPhysicalDevice physical_device,
                       uint32_t graphics_queue_family_index,
                       uint32_t present_queue_family_index,
-                      const std::vector<const char*>* layers) {
-  spdlog::debug("queue family {} picked for graphics", graphics_queue_family_index);
-  spdlog::debug("queue family {} picked for present", present_queue_family_index);
+                      const std::vector<const char*>* layers,
+                      const std::vector<const char*>* extensions) {
+  spdlog::debug("queue family {} picked for graphics",
+                graphics_queue_family_index);
+  spdlog::debug("queue family {} picked for present",
+                present_queue_family_index);
   std::set<uint32_t> unique_queue_families = {graphics_queue_family_index,
                                               present_queue_family_index};
   std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
@@ -32,7 +35,12 @@ VkResult Device::Init(VkPhysicalDevice physical_device,
       static_cast<uint32_t>(queue_create_infos.size());
   create_info.pEnabledFeatures = &device_features;
 
-  create_info.enabledExtensionCount = 0;
+  if (extensions) {
+    create_info.enabledExtensionCount =
+        static_cast<uint32_t>(extensions->size());
+    create_info.ppEnabledExtensionNames = extensions->data();
+  } else
+    create_info.enabledExtensionCount = 0;
   if (layers) {
     create_info.enabledLayerCount = static_cast<uint32_t>(layers->size());
     create_info.ppEnabledLayerNames = layers->data();
