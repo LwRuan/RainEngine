@@ -1,6 +1,7 @@
 #include "physicaldevice.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -147,6 +148,62 @@ PhysicalDevice::SwapChainSupportDetails PhysicalDevice::QuerySwapChainSupport(
         device, surface, &present_mode_count, details.present_modes_.data());
   }
   return details;
+}
+
+VkSurfaceFormatKHR PhysicalDevice::ChooseSurfaceFormat() {
+  for (const auto& format : swap_chain_support_details_.formats_) {
+    if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
+        format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+      spdlog::debug("surface format picked: sRGB32 nonlinear");
+      return format;
+    }
+  }
+  const auto& format = swap_chain_support_details_.formats_[0];
+  spdlog::debug("default surface format picked: format {}, color space {}",
+                format.format, format.colorSpace);
+  return swap_chain_support_details_.formats_[0];
+}
+
+VkPresentModeKHR PhysicalDevice::ChoosePresentMode(
+    const VkPresentModeKHR& recommand) {
+  std::optional<VkPresentModeKHR> ret;
+  for (const auto& mode : swap_chain_support_details_.present_modes_) {
+    if (mode == recommand) {
+      ret = mode;
+      break;
+    }
+  }
+  if (!ret.has_value()) ret = swap_chain_support_details_.present_modes_[0];
+  if (ret.value() == VK_PRESENT_MODE_FIFO_KHR)
+    spdlog::debug("present mode picked: FIFO");
+  else if (ret.value() == VK_PRESENT_MODE_MAILBOX_KHR)
+    spdlog::debug("present mode picked: MAILBOX");
+  else
+    spdlog::debug("present mode picked: {}", ret.value());
+  return ret.value();
+}
+
+VkExtent2D PhysicalDevice::ChooseSwapExtent(GLFWwindow* window) {
+  VkExtent2D extent = swap_chain_support_details_.capabilities_.currentExtent;
+  if (extent.width != UINT32_MAX) {
+    spdlog::debug("swap extent picked: {}*{}", extent.width, extent.height);
+    return extent;
+  } else {
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    extent.width = static_cast<uint32_t>(width);
+    extent.height = static_cast<uint32_t>(height);
+    extent.width = std::clamp(
+        extent.width,
+        swap_chain_support_details_.capabilities_.minImageExtent.width,
+        swap_chain_support_details_.capabilities_.maxImageExtent.width);
+    extent.height = std::clamp(
+        extent.height,
+        swap_chain_support_details_.capabilities_.minImageExtent.height,
+        swap_chain_support_details_.capabilities_.maxImageExtent.height);
+    spdlog::debug("swap extent picked: {}*{}", extent.width, extent.height);
+    return extent;
+  }
 }
 
 };  // namespace Rain

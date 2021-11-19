@@ -1,6 +1,7 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
 #include <optional>
 #include <set>
@@ -40,5 +41,9 @@ class PhysicalDevice {
   SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device,
                                                 VkSurfaceKHR surface,
                                                 bool verbose);
+  VkSurfaceFormatKHR ChooseSurfaceFormat();
+  VkPresentModeKHR ChoosePresentMode(
+      const VkPresentModeKHR& recommand = VK_PRESENT_MODE_MAILBOX_KHR);
+  VkExtent2D ChooseSwapExtent(GLFWwindow* window);
 };
 };  // namespace Rain

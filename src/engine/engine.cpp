@@ -119,6 +119,12 @@ void Engine::Init() {
     } else
       spdlog::debug("logical device created");
   }
+
+  { // create swap chain
+    VkSurfaceFormatKHR surface_format = physical_deivce_->ChooseSurfaceFormat();
+    VkPresentModeKHR present_mode = physical_deivce_->ChoosePresentMode();
+    VkExtent2D extent = physical_deivce_->ChooseSwapExtent(window_);
+  }
 }
 
 void Engine::MainLoop() {
