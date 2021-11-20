@@ -34,7 +34,7 @@ target("engine")
 
 target("RainEngine")
     set_kind("binary")
-    add_includedirs("src/engine")
+    add_includedirs("src/engine", "src")
     add_files("src/main.cpp")
     add_deps("engine")
     set_targetdir("bin")

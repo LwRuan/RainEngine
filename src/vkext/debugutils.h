@@ -9,9 +9,9 @@ class DebugUtilsEXT {
   VkDebugUtilsMessengerEXT debug_messenger_ = nullptr;
 
   VkResult Init(VkInstance instance);
-  void GetCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
   void Destroy(VkInstance instance);
 
+  static void GetCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
   static VKAPI_ATTR VkBool32 VKAPI_CALL
   DebugCallBack(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                   VkDebugUtilsMessageTypeFlagsEXT messageType,

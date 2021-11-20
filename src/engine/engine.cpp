@@ -29,7 +29,7 @@ void Engine::Init() {
       spdlog::error("validation layers requested, but not available");
       exit(1);
     }
-    debug_utils_ext_ = new DebugUtilsEXT();
+    debug_utils_ext_ = new DebugUtilsEXT;
   }
 
   {  // create instance
@@ -49,9 +49,9 @@ void Engine::Init() {
           static_cast<uint32_t>(validation_layers_.size());
       create_info.ppEnabledLayerNames = validation_layers_.data();
       VkDebugUtilsMessengerCreateInfoEXT debug_create_info{};
-      debug_utils_ext_->GetCreateInfo(debug_create_info);
-      create_info.pNext =
-          (VkDebugUtilsMessengerCreateInfoEXT*)&debug_create_info;
+      DebugUtilsEXT::GetCreateInfo(debug_create_info);
+      // create_info.pNext =
+      //     (VkDebugUtilsMessengerCreateInfoEXT*)&debug_create_info;
     } else {
       create_info.enabledLayerCount = 0;
       create_info.pNext = nullptr;
