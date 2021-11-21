@@ -21,6 +21,7 @@ class Engine {
   PhysicalDevice* physical_deivce_ = nullptr;
   Device* device_ = nullptr;
   VkSurfaceKHR surface_ = VK_NULL_HANDLE;
+  VkSwapchainKHR swap_chain_ = VK_NULL_HANDLE;
 
   DebugUtilsEXT* debug_utils_ext_ = nullptr;
   bool enable_validation_layers_;
