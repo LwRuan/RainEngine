@@ -5,23 +5,23 @@
 
 #include <vector>
 
-#include "device/physicaldevice.h"
 #include "device/device.h"
+#include "device/physicaldevice.h"
+#include "surface/swapchain.h"
 #include "vkext/debugutils.h"
 
 namespace Rain {
 class Engine {
  public:
-
   uint32_t width_ = 800;
   uint32_t height_ = 600;
-  GLFWwindow* window_ = nullptr;
 
+  GLFWwindow* window_ = nullptr;
   VkInstance instance_ = VK_NULL_HANDLE;
-  PhysicalDevice* physical_deivce_ = nullptr;
+  PhysicalDevice* physical_device_ = nullptr;
   Device* device_ = nullptr;
   VkSurfaceKHR surface_ = VK_NULL_HANDLE;
-  VkSwapchainKHR swap_chain_ = VK_NULL_HANDLE;
+  SwapChain* swap_chain_ = nullptr;
 
   DebugUtilsEXT* debug_utils_ext_ = nullptr;
   bool enable_validation_layers_;

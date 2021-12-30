@@ -90,8 +90,8 @@ void Engine::Init() {
   }
 
   {  // create physical device
-    physical_deivce_ = new PhysicalDevice;
-    if (physical_deivce_->Init(instance_, surface_) != VK_SUCCESS) {
+    physical_device_ = new PhysicalDevice;
+    if (physical_device_->Init(instance_, surface_) != VK_SUCCESS) {
       CleanUp();
       exit(1);
     } else
@@ -102,16 +102,16 @@ void Engine::Init() {
     device_ = new Device;
     VkResult result = VK_SUCCESS;
     uint32_t graphics_queue_family, present_queue_family;
-    physical_deivce_->GetGraphicsPresentQueueFamily(graphics_queue_family,
+    physical_device_->GetGraphicsPresentQueueFamily(graphics_queue_family,
                                                     present_queue_family);
     if (enable_validation_layers_) {
-      result = device_->Init(physical_deivce_->device_, graphics_queue_family,
+      result = device_->Init(physical_device_->device_, graphics_queue_family,
                              present_queue_family, &validation_layers_,
-                             &physical_deivce_->device_extensions_);
+                             &physical_device_->device_extensions_);
     } else
-      result = device_->Init(physical_deivce_->device_, graphics_queue_family,
+      result = device_->Init(physical_device_->device_, graphics_queue_family,
                              present_queue_family, nullptr,
-                             &physical_deivce_->device_extensions_);
+                             &physical_device_->device_extensions_);
     if (result != VK_SUCCESS) {
       spdlog::error("logical device creation failed");
       CleanUp();
@@ -121,47 +121,8 @@ void Engine::Init() {
   }
 
   {  // create swap chain
-    VkSurfaceFormatKHR surface_format = physical_deivce_->ChooseSurfaceFormat();
-    VkPresentModeKHR present_mode = physical_deivce_->ChoosePresentMode();
-    VkExtent2D extent = physical_deivce_->ChooseSwapExtent(window_);
-    uint32_t min_image_count = physical_deivce_->swap_chain_support_details_
-                                   .capabilities_.minImageCount;
-    uint32_t max_image_count = physical_deivce_->swap_chain_support_details_
-                                   .capabilities_.maxImageCount;
-    uint32_t image_count = min_image_count + 1;
-    if (max_image_count > 0 && image_count > max_image_count) {
-      image_count = max_image_count;
-    }
-    spdlog::debug("swap chain image count: {}", image_count);
-    VkSwapchainCreateInfoKHR create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    create_info.surface = surface_;
-    create_info.minImageCount = image_count;
-    create_info.imageFormat = surface_format.format;
-    create_info.imageColorSpace = surface_format.colorSpace;
-    create_info.imageExtent = extent;
-    create_info.imageArrayLayers = 1;
-    create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    uint32_t queue_family[2];
-    physical_deivce_->GetGraphicsPresentQueueFamily(queue_family[0],
-                                                    queue_family[1]);
-    if (queue_family[0] != queue_family[1]) {
-      create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-      create_info.queueFamilyIndexCount = 2;
-      create_info.pQueueFamilyIndices = queue_family;
-    } else {
-      create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      create_info.queueFamilyIndexCount = 0;
-      create_info.pQueueFamilyIndices = nullptr;
-    }
-    create_info.preTransform = physical_deivce_->swap_chain_support_details_
-                                   .capabilities_.currentTransform;
-    create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    create_info.presentMode = present_mode;
-    create_info.clipped = VK_TRUE;
-    create_info.oldSwapchain = VK_NULL_HANDLE;
-    if (vkCreateSwapchainKHR(device_->device_, &create_info, nullptr,
-                             &swap_chain_) != VK_SUCCESS) {
+    swap_chain_ = new SwapChain;
+    if (swap_chain_->Init(device_, physical_device_, window_, surface_) != VK_SUCCESS) {
       spdlog::error("swap chain creation failed");
       CleanUp();
       exit(1);
@@ -180,9 +141,9 @@ void Engine::MainLoop() {
 void Engine::CleanUp() {
   if (instance_) {
     if (device_) {
-      if (swap_chain_) {
-        vkDestroySwapchainKHR(device_->device_, swap_chain_, nullptr);
-        spdlog::debug("swap chain destroyed");
+      if(swap_chain_) {
+        swap_chain_->Destroy();
+        delete swap_chain_;
       }
       device_->Destroy();
       delete device_;
@@ -198,7 +159,7 @@ void Engine::CleanUp() {
     vkDestroyInstance(instance_, nullptr);
     spdlog::debug("instance destroyed");
   }
-  if (physical_deivce_) delete physical_deivce_;
+  if (physical_device_) delete physical_device_;
   glfwDestroyWindow(window_);
   glfwTerminate();
 }
