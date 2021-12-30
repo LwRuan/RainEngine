@@ -47,20 +47,54 @@ VkResult SwapChain::Init(Device* device, PhysicalDevice* physical_device,
   create_info.oldSwapchain = VK_NULL_HANDLE;
   VkResult result = vkCreateSwapchainKHR(device->device_, &create_info, nullptr,
                                          &swap_chain_);
-  if (result == VK_SUCCESS) {
-    vkGetSwapchainImagesKHR(device->device_, swap_chain_, &image_count,
-                            nullptr);
-    images_.resize(image_count);
-    vkGetSwapchainImagesKHR(device->device_, swap_chain_, &image_count,
-                            images_.data());
-    image_format_ = surface_format.format;
-    extent_ = extent;
+  if(result != VK_SUCCESS) {
+    spdlog::error("swap chain creation failed");
+    return result;
   }
-  return result;
+  vkGetSwapchainImagesKHR(device->device_, swap_chain_, &image_count,
+                          nullptr);
+  images_.resize(image_count);
+  vkGetSwapchainImagesKHR(device->device_, swap_chain_, &image_count,
+                          images_.data());
+  image_format_ = surface_format.format;
+  extent_ = extent;
+  result = CreateImageViews();
+  if(result != VK_SUCCESS) {
+    spdlog::error("swap chain image view creation failed");
+    return result;
+  }
+  return VK_SUCCESS;
+}
+
+VkResult SwapChain::CreateImageViews() {
+  image_views_.resize(images_.size());
+  for(size_t i=0;i<images_.size();++i) {
+    VkImageViewCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    create_info.image = images_[i];
+    create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    create_info.format = image_format_;
+    create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    create_info.subresourceRange.baseMipLevel = 0;
+    create_info.subresourceRange.levelCount = 1;
+    create_info.subresourceRange.baseArrayLayer = 0;
+    create_info.subresourceRange.layerCount = 1;
+
+    VkResult result = vkCreateImageView(device_->device_, &create_info, nullptr, &image_views_[i]);
+    if (result != VK_SUCCESS) return result;
+  }
+  return VK_SUCCESS;
 }
 
 void SwapChain::Destroy() {
   if (swap_chain_) {
+    for(auto image_view : image_views_) {
+      vkDestroyImageView(device_->device_, image_view, nullptr);
+    }
     vkDestroySwapchainKHR(device_->device_, swap_chain_, nullptr);
     spdlog::debug("swap chain destroyed");
   }
