@@ -130,6 +130,17 @@ void Engine::Init() {
       spdlog::debug("swap chain created");
     }
   }
+
+  { // create pipeline
+    pipeline_ = new Pipeline;
+    if(pipeline_->Init(device_->device_) != VK_SUCCESS) {
+      spdlog::error("pipeline creation failed");
+      CleanUp();
+      exit(1);
+    } else {
+      spdlog::debug("pipeline created");
+    }
+  }
 }
 
 void Engine::MainLoop() {
@@ -144,6 +155,10 @@ void Engine::CleanUp() {
       if(swap_chain_) {
         swap_chain_->Destroy();
         delete swap_chain_;
+      }
+      if(pipeline_) {
+        pipeline_->Destroy(device_->device_);
+        delete pipeline_;
       }
       device_->Destroy();
       delete device_;

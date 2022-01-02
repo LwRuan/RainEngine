@@ -8,6 +8,7 @@
 #include "device/device.h"
 #include "device/physicaldevice.h"
 #include "surface/swapchain.h"
+#include "pipeline/pipeline.h"
 #include "vkext/debugutils.h"
 
 namespace Rain {
@@ -22,6 +23,7 @@ class Engine {
   Device* device_ = nullptr;
   VkSurfaceKHR surface_ = VK_NULL_HANDLE;
   SwapChain* swap_chain_ = nullptr;
+  Pipeline* pipeline_;
 
   DebugUtilsEXT* debug_utils_ext_ = nullptr;
   bool enable_validation_layers_;

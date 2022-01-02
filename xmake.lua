@@ -7,7 +7,7 @@ set_languages("cxx17")
 target("engine")
     set_kind("static")
     add_includedirs("src/engine", "src")
-    add_files("src/engine/*.cpp", "src/device/*.cpp", "src/vkext/*.cpp", "src/surface/*.cpp")
+    add_files("src/*/*.cpp")
     add_packages("glfw", "spdlog","cmake::Vulkan" , {public=true})
 
 target("RainEngine")
