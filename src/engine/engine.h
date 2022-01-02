@@ -23,7 +23,7 @@ class Engine {
   Device* device_ = nullptr;
   VkSurfaceKHR surface_ = VK_NULL_HANDLE;
   SwapChain* swap_chain_ = nullptr;
-  Pipeline* pipeline_;
+  Pipeline* pipeline_ = nullptr;
 
   DebugUtilsEXT* debug_utils_ext_ = nullptr;
   bool enable_validation_layers_;
