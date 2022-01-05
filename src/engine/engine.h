@@ -28,6 +28,8 @@ class Engine {
   RenderPass* render_pass_ = nullptr;
   Pipeline* pipeline_ = nullptr;
   std::vector<Framebuffer> framebuffers_;
+  VkCommandPool command_pool_ = VK_NULL_HANDLE;
+  std::vector<VkCommandBuffer> command_buffers_;
 
   DebugUtilsEXT* debug_utils_ext_ = nullptr;
   bool enable_validation_layers_;
@@ -37,6 +39,7 @@ class Engine {
 
   Engine();
   void Init();
+  void DrawFrame();
   void MainLoop();
   void CleanUp();
   bool CheckValidationLayerSupport();
