@@ -37,8 +37,11 @@ VkResult Shader::Init(VkDevice device, const std::string& name) {
       create_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
       VkResult result =
           vkCreateShaderModule(device, &create_info, nullptr, &modules_[i]);
-      if (result != VK_SUCCESS) return result;
-      spdlog::debug("shader {} created", name + "." + file_ext[i]);
+      if (result != VK_SUCCESS) {
+        spdlog::error("{} module creation failed", name + "." + file_ext[i]);
+        return result;
+      }
+      spdlog::debug("shader {} loaded", name + "." + file_ext[i]);
     }
   }
   return VK_SUCCESS;
@@ -46,7 +49,7 @@ VkResult Shader::Init(VkDevice device, const std::string& name) {
 
 void Shader::Destroy(VkDevice device) {
   for (size_t i = 0; i < SHADER_STAGE_NUM; ++i) {
-    if(modules_[i]) {
+    if (modules_[i]) {
       vkDestroyShaderModule(device, modules_[i], nullptr);
     }
   }

@@ -133,7 +133,7 @@ void Engine::Init() {
 
   { // create pipeline
     pipeline_ = new Pipeline;
-    if(pipeline_->Init(device_->device_) != VK_SUCCESS) {
+    if(pipeline_->Init(device_->device_, swap_chain_->extent_, swap_chain_->render_pass_) != VK_SUCCESS) {
       spdlog::error("pipeline creation failed");
       CleanUp();
       exit(1);
