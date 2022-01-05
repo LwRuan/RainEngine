@@ -122,7 +122,8 @@ void Engine::Init() {
 
   {  // create swap chain
     swap_chain_ = new SwapChain;
-    if (swap_chain_->Init(device_, physical_device_, window_, surface_) != VK_SUCCESS) {
+    if (swap_chain_->Init(device_, physical_device_, window_, surface_) !=
+        VK_SUCCESS) {
       spdlog::error("swap chain creation failed");
       CleanUp();
       exit(1);
@@ -131,15 +132,38 @@ void Engine::Init() {
     }
   }
 
-  { // create pipeline
+  {  // create render pass
+    render_pass_ = new RenderPass;
+    if (render_pass_->Init(device_->device_, swap_chain_->image_format_) !=
+        VK_SUCCESS) {
+      CleanUp();
+      exit(1);
+    }
+  }
+
+  {  // create pipeline
     pipeline_ = new Pipeline;
-    if(pipeline_->Init(device_->device_, swap_chain_->extent_, swap_chain_->render_pass_) != VK_SUCCESS) {
+    if (pipeline_->Init(device_->device_, swap_chain_->extent_,
+                        render_pass_->render_pass_) != VK_SUCCESS) {
       spdlog::error("pipeline creation failed");
       CleanUp();
       exit(1);
     } else {
       spdlog::debug("pipeline created");
     }
+  }
+
+  {  // create framebuffers
+    framebuffers_.resize(swap_chain_->image_views_.size(), Framebuffer());
+    for (size_t i = 0; i < swap_chain_->image_views_.size(); ++i) {
+      if (framebuffers_[i].Init(device_->device_, swap_chain_->extent_,
+                                swap_chain_->image_views_[i],
+                                render_pass_->render_pass_) != VK_SUCCESS) {
+        CleanUp();
+        exit(1);
+      }
+    }
+    spdlog::debug("framebuffers created");
   }
 }
 
@@ -152,14 +176,22 @@ void Engine::MainLoop() {
 void Engine::CleanUp() {
   if (instance_) {
     if (device_) {
-      if(swap_chain_) {
+      if (swap_chain_) {
         swap_chain_->Destroy();
         delete swap_chain_;
       }
-      if(pipeline_) {
+      if (pipeline_) {
         pipeline_->Destroy(device_->device_);
         delete pipeline_;
       }
+      if (render_pass_) {
+        render_pass_->Destroy(device_->device_);
+        delete render_pass_;
+      }
+      for (auto framebuffer : framebuffers_) {
+        framebuffer.Destroy(device_->device_);
+      }
+      spdlog::debug("framebuffers destroyed");
       device_->Destroy();
       delete device_;
     }

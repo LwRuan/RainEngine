@@ -10,6 +10,8 @@
 #include "surface/swapchain.h"
 #include "pipeline/pipeline.h"
 #include "vkext/debugutils.h"
+#include "framebuffer/framebuffer.h"
+#include "renderpass/renderpass.h"
 
 namespace Rain {
 class Engine {
@@ -23,7 +25,9 @@ class Engine {
   Device* device_ = nullptr;
   VkSurfaceKHR surface_ = VK_NULL_HANDLE;
   SwapChain* swap_chain_ = nullptr;
+  RenderPass* render_pass_ = nullptr;
   Pipeline* pipeline_ = nullptr;
+  std::vector<Framebuffer> framebuffers_;
 
   DebugUtilsEXT* debug_utils_ext_ = nullptr;
   bool enable_validation_layers_;

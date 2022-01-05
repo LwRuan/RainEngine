@@ -59,8 +59,6 @@ VkResult SwapChain::Init(Device* device, PhysicalDevice* physical_device,
   extent_ = extent;
   result = CreateImageViews();
   if (result != VK_SUCCESS) return result;
-  result = CreateRenderPass();
-  if (result != VK_SUCCESS) return result;
   return VK_SUCCESS;
 }
 
@@ -92,52 +90,11 @@ VkResult SwapChain::CreateImageViews() {
   return VK_SUCCESS;
 }
 
-VkResult SwapChain::CreateRenderPass() {
-  VkAttachmentDescription color_attachment{};
-  color_attachment.format = image_format_;
-  color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-  VkAttachmentReference color_attachment_ref{};
-  color_attachment_ref.attachment = 0;
-  color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-  VkSubpassDescription subpass{};
-  subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-  subpass.colorAttachmentCount = 1;
-  subpass.pColorAttachments = &color_attachment_ref;
-
-  VkRenderPassCreateInfo render_pass_info{};
-  render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  render_pass_info.attachmentCount = 1;
-  render_pass_info.pAttachments = &color_attachment;
-  render_pass_info.subpassCount = 1;
-  render_pass_info.pSubpasses = &subpass;
-
-  VkResult result = vkCreateRenderPass(device_->device_, &render_pass_info,
-                                       nullptr, &render_pass_);
-  if (result != VK_SUCCESS) {
-    spdlog::error("render pass creation failed");
-    return result;
-  }
-  spdlog::debug("render pass created");
-  return VK_SUCCESS;
-}
-
 void SwapChain::Destroy() {
   if (swap_chain_) {
     for (auto image_view : image_views_) {
       if (image_view != VK_NULL_HANDLE)
         vkDestroyImageView(device_->device_, image_view, nullptr);
-    }
-    if (render_pass_ != VK_NULL_HANDLE) {
-      vkDestroyRenderPass(device_->device_, render_pass_, nullptr);
-      spdlog::debug("render pass destroyed");
     }
     if (swap_chain_ != VK_NULL_HANDLE) {
       vkDestroySwapchainKHR(device_->device_, swap_chain_, nullptr);
