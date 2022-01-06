@@ -5,6 +5,24 @@ namespace Rain {
 VkResult SwapChain::Init(Device* device, PhysicalDevice* physical_device,
                          GLFWwindow* window, VkSurfaceKHR surface) {
   device_ = device;
+
+  {  // create semaphores
+    VkSemaphoreCreateInfo semaphore_info{};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    VkResult result = vkCreateSemaphore(device->device_, &semaphore_info,
+                                        nullptr, &image_available_semaphore_);
+    if (result != VK_SUCCESS) {
+      spdlog::error("semaphore creation failed");
+      return result;
+    }
+    result = vkCreateSemaphore(device->device_, &semaphore_info, nullptr,
+                               &render_finished_semaphore_);
+    if (result != VK_SUCCESS) {
+      spdlog::error("semaphore creation failed");
+      return result;
+    }
+  }
+
   VkSurfaceFormatKHR surface_format = physical_device->ChooseSurfaceFormat();
   VkPresentModeKHR present_mode = physical_device->ChoosePresentMode();
   VkExtent2D extent = physical_device->ChooseSwapExtent(window);
@@ -90,7 +108,63 @@ VkResult SwapChain::CreateImageViews() {
   return VK_SUCCESS;
 }
 
+uint32_t SwapChain::BeginFrame() {
+  uint32_t image_index;
+  vkAcquireNextImageKHR(device_->device_, swap_chain_, UINT64_MAX,
+                        image_available_semaphore_, VK_NULL_HANDLE,
+                        &image_index);
+  return image_index;
+}
+
+VkResult SwapChain::EndFrame(VkCommandBuffer* command_buffer,
+                             VkQueue graphic_queue, VkQueue present_queue,
+                             uint32_t image_index) {
+  VkSubmitInfo submit_info{};
+  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+  VkSemaphore wait_semaphores[] = {image_available_semaphore_};
+  VkPipelineStageFlags wait_stages[] = {
+      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+  submit_info.waitSemaphoreCount = 1;
+  submit_info.pWaitSemaphores = wait_semaphores;
+  submit_info.pWaitDstStageMask = wait_stages;
+  submit_info.commandBufferCount = 1;
+  submit_info.pCommandBuffers = command_buffer;
+  VkSemaphore signal_semaphores[] = {render_finished_semaphore_};
+  submit_info.signalSemaphoreCount = 1;
+  submit_info.pSignalSemaphores = signal_semaphores;
+
+  VkResult result =
+      vkQueueSubmit(graphic_queue, 1, &submit_info, VK_NULL_HANDLE);
+  if (result != VK_SUCCESS) {
+    spdlog::error("queue submition failed");
+    return result;
+  }
+
+  VkPresentInfoKHR present_info{};
+  present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  present_info.waitSemaphoreCount = 1;
+  present_info.pWaitSemaphores = signal_semaphores;
+  VkSwapchainKHR swap_chains[] = {swap_chain_};
+  present_info.swapchainCount = 1;
+  present_info.pSwapchains = swap_chains;
+  present_info.pImageIndices = &image_index;
+  result = vkQueuePresentKHR(present_queue, &present_info);
+  if (result != VK_SUCCESS) {
+    spdlog::error("queue presentation failed");
+    return result;
+  }
+  vkQueueWaitIdle(present_queue);
+  return VK_SUCCESS;
+}
+
 void SwapChain::Destroy() {
+  if (image_available_semaphore_ != VK_NULL_HANDLE) {
+    vkDestroySemaphore(device_->device_, image_available_semaphore_, nullptr);
+  }
+  if (render_finished_semaphore_ != VK_NULL_HANDLE) {
+    vkDestroySemaphore(device_->device_, render_finished_semaphore_, nullptr);
+  }
   if (swap_chain_) {
     for (auto image_view : image_views_) {
       if (image_view != VK_NULL_HANDLE)

@@ -235,7 +235,10 @@ void Engine::Init() {
 }
 
 void Engine::DrawFrame() {
-
+  uint32_t image_index = swap_chain_->BeginFrame();
+  swap_chain_->EndFrame(&command_buffers_[image_index],
+                        device_->graphics_queue_, device_->present_queue_,
+                        image_index);
 }
 
 void Engine::MainLoop() {
@@ -243,6 +246,7 @@ void Engine::MainLoop() {
     glfwPollEvents();
     DrawFrame();
   }
+  vkDeviceWaitIdle(device_->device_);
 }
 
 void Engine::CleanUp() {
