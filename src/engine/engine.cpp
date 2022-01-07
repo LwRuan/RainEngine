@@ -203,6 +203,8 @@ void Engine::Init() {
     for (size_t i = 0; i < command_buffers_.size(); ++i) {
       VkCommandBufferBeginInfo begin_info{};
       begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+      begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+      ;
       result = vkBeginCommandBuffer(command_buffers_[i], &begin_info);
       if (result != VK_SUCCESS) {
         spdlog::error("command buffer recording start failed");

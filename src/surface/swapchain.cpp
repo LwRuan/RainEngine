@@ -6,23 +6,6 @@ VkResult SwapChain::Init(Device* device, PhysicalDevice* physical_device,
                          GLFWwindow* window, VkSurfaceKHR surface) {
   device_ = device;
 
-  {  // create semaphores
-    VkSemaphoreCreateInfo semaphore_info{};
-    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    VkResult result = vkCreateSemaphore(device->device_, &semaphore_info,
-                                        nullptr, &image_available_semaphore_);
-    if (result != VK_SUCCESS) {
-      spdlog::error("semaphore creation failed");
-      return result;
-    }
-    result = vkCreateSemaphore(device->device_, &semaphore_info, nullptr,
-                               &render_finished_semaphore_);
-    if (result != VK_SUCCESS) {
-      spdlog::error("semaphore creation failed");
-      return result;
-    }
-  }
-
   VkSurfaceFormatKHR surface_format = physical_device->ChooseSurfaceFormat();
   VkPresentModeKHR present_mode = physical_device->ChoosePresentMode();
   VkExtent2D extent = physical_device->ChooseSwapExtent(window);
@@ -77,6 +60,38 @@ VkResult SwapChain::Init(Device* device, PhysicalDevice* physical_device,
   extent_ = extent;
   result = CreateImageViews();
   if (result != VK_SUCCESS) return result;
+
+  image_available_semaphores_.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
+  render_finished_semaphores_.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
+  in_flight_fences_.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
+  images_in_flight_.resize(images_.size(), VK_NULL_HANDLE);
+  VkSemaphoreCreateInfo semaphore_info{};
+  semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  VkFenceCreateInfo fence_signaled_info{};
+  fence_signaled_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  fence_signaled_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    VkResult result =
+        vkCreateSemaphore(device->device_, &semaphore_info, nullptr,
+                          &image_available_semaphores_[i]);
+    if (result != VK_SUCCESS) {
+      spdlog::error("semaphore creation failed");
+      return result;
+    }
+    result = vkCreateSemaphore(device->device_, &semaphore_info, nullptr,
+                               &render_finished_semaphores_[i]);
+    if (result != VK_SUCCESS) {
+      spdlog::error("semaphore creation failed");
+      return result;
+    }
+    result = vkCreateFence(device->device_, &fence_signaled_info, nullptr,
+                           &in_flight_fences_[i]);
+    if (result != VK_SUCCESS) {
+      spdlog::error("fence creation failed");
+      return result;
+    }
+  }
+
   return VK_SUCCESS;
 }
 
@@ -109,10 +124,18 @@ VkResult SwapChain::CreateImageViews() {
 }
 
 uint32_t SwapChain::BeginFrame() {
+  vkWaitForFences(device_->device_, 1, &in_flight_fences_[current_frame_],
+                  VK_TRUE, UINT64_MAX);
+  vkResetFences(device_->device_, 1, &in_flight_fences_[current_frame_]);
   uint32_t image_index;
   vkAcquireNextImageKHR(device_->device_, swap_chain_, UINT64_MAX,
-                        image_available_semaphore_, VK_NULL_HANDLE,
-                        &image_index);
+                        image_available_semaphores_[current_frame_],
+                        VK_NULL_HANDLE, &image_index);
+  if (images_in_flight_[image_index] != VK_NULL_HANDLE) {
+    vkWaitForFences(device_->device_, 1, &images_in_flight_[image_index],
+                    VK_TRUE, UINT64_MAX);
+  }
+  images_in_flight_[image_index] = in_flight_fences_[current_frame_];
   return image_index;
 }
 
@@ -122,7 +145,7 @@ VkResult SwapChain::EndFrame(VkCommandBuffer* command_buffer,
   VkSubmitInfo submit_info{};
   submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-  VkSemaphore wait_semaphores[] = {image_available_semaphore_};
+  VkSemaphore wait_semaphores[] = {image_available_semaphores_[current_frame_]};
   VkPipelineStageFlags wait_stages[] = {
       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
   submit_info.waitSemaphoreCount = 1;
@@ -130,12 +153,14 @@ VkResult SwapChain::EndFrame(VkCommandBuffer* command_buffer,
   submit_info.pWaitDstStageMask = wait_stages;
   submit_info.commandBufferCount = 1;
   submit_info.pCommandBuffers = command_buffer;
-  VkSemaphore signal_semaphores[] = {render_finished_semaphore_};
+  VkSemaphore signal_semaphores[] = {
+      render_finished_semaphores_[current_frame_]};
   submit_info.signalSemaphoreCount = 1;
   submit_info.pSignalSemaphores = signal_semaphores;
 
-  VkResult result =
-      vkQueueSubmit(graphic_queue, 1, &submit_info, VK_NULL_HANDLE);
+  vkResetFences(device_->device_, 1, &in_flight_fences_[current_frame_]);
+  VkResult result = vkQueueSubmit(graphic_queue, 1, &submit_info,
+                                  in_flight_fences_[current_frame_]);
   if (result != VK_SUCCESS) {
     spdlog::error("queue submition failed");
     return result;
@@ -154,16 +179,24 @@ VkResult SwapChain::EndFrame(VkCommandBuffer* command_buffer,
     spdlog::error("queue presentation failed");
     return result;
   }
-  vkQueueWaitIdle(present_queue);
+  current_frame_ = (current_frame_ + 1) % MAX_FRAMES_IN_FLIGHT;
+  // vkQueueWaitIdle(present_queue);
   return VK_SUCCESS;
 }
 
 void SwapChain::Destroy() {
-  if (image_available_semaphore_ != VK_NULL_HANDLE) {
-    vkDestroySemaphore(device_->device_, image_available_semaphore_, nullptr);
-  }
-  if (render_finished_semaphore_ != VK_NULL_HANDLE) {
-    vkDestroySemaphore(device_->device_, render_finished_semaphore_, nullptr);
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    if (image_available_semaphores_[i] != VK_NULL_HANDLE) {
+      vkDestroySemaphore(device_->device_, image_available_semaphores_[i],
+                         nullptr);
+    }
+    if (render_finished_semaphores_[i] != VK_NULL_HANDLE) {
+      vkDestroySemaphore(device_->device_, render_finished_semaphores_[i],
+                         nullptr);
+    }
+    if (in_flight_fences_[i] != VK_NULL_HANDLE) {
+      vkDestroyFence(device_->device_, in_flight_fences_[i], nullptr);
+    }
   }
   if (swap_chain_) {
     for (auto image_view : image_views_) {
