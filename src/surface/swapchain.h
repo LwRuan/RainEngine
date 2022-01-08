@@ -19,8 +19,6 @@ class SwapChain {
   std::vector<VkImage> images_;
   std::vector<VkImageView> image_views_;
 
-  // VkSemaphore image_available_semaphore_ = VK_NULL_HANDLE;
-  // VkSemaphore render_finished_semaphore_ = VK_NULL_HANDLE;
   const int MAX_FRAMES_IN_FLIGHT = 2;
   std::vector<VkSemaphore> image_available_semaphores_;
   std::vector<VkSemaphore> render_finished_semaphores_;

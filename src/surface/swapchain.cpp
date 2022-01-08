@@ -126,7 +126,6 @@ VkResult SwapChain::CreateImageViews() {
 uint32_t SwapChain::BeginFrame() {
   vkWaitForFences(device_->device_, 1, &in_flight_fences_[current_frame_],
                   VK_TRUE, UINT64_MAX);
-  vkResetFences(device_->device_, 1, &in_flight_fences_[current_frame_]);
   uint32_t image_index;
   vkAcquireNextImageKHR(device_->device_, swap_chain_, UINT64_MAX,
                         image_available_semaphores_[current_frame_],
@@ -180,7 +179,6 @@ VkResult SwapChain::EndFrame(VkCommandBuffer* command_buffer,
     return result;
   }
   current_frame_ = (current_frame_ + 1) % MAX_FRAMES_IN_FLIGHT;
-  // vkQueueWaitIdle(present_queue);
   return VK_SUCCESS;
 }
 
