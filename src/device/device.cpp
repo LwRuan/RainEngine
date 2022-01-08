@@ -51,14 +51,55 @@ VkResult Device::Init(VkPhysicalDevice physical_device,
   if (result == VK_SUCCESS) {
     vkGetDeviceQueue(device_, graphics_queue_family_index, 0, &graphics_queue_);
     vkGetDeviceQueue(device_, present_queue_family_index, 0, &present_queue_);
+  } else {
+    spdlog::error("logical device creation failed");
+    return result;
   }
-  return result;
+
+  {  // create command pool
+    VkCommandPoolCreateInfo pool_info{};
+    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pool_info.queueFamilyIndex = graphics_queue_family_index;
+    pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    VkResult result =
+        vkCreateCommandPool(device_, &pool_info, nullptr, &command_pool_);
+    if (result != VK_SUCCESS) {
+      spdlog::error("command pool creation failed");
+      return result;
+    } else {
+      spdlog::debug("command pool created");
+    }
+  }
+  return VK_SUCCESS;
+}
+
+VkResult Device::AllocateCommandBuffers(SwapChain* swap_chain) {
+  swap_chain_ = swap_chain;
+  command_buffers_.resize(swap_chain_->images_.size());
+  VkCommandBufferAllocateInfo alloc_info{};
+  alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  alloc_info.commandPool = command_pool_;
+  alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  alloc_info.commandBufferCount = (uint32_t)command_buffers_.size();
+  VkResult result = vkAllocateCommandBuffers(device_, &alloc_info,
+                                              command_buffers_.data());
+  if (result != VK_SUCCESS) {
+    spdlog::error("command buffers allocation failed");
+    return result;
+  } else {
+    spdlog::debug("command buffer allocated");
+  }
+  return VK_SUCCESS;
 }
 
 void Device::Destroy() {
+  if (command_pool_ != VK_NULL_HANDLE) {
+    vkDestroyCommandPool(device_, command_pool_, nullptr);
+    spdlog::debug("command pool destroyed");
+  }
   if (device_) {
-    spdlog::debug("logical device destroyed");
     vkDestroyDevice(device_, nullptr);
+    spdlog::debug("logical device destroyed");
   }
 }
 };  // namespace Rain

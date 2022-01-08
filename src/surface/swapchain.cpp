@@ -1,4 +1,5 @@
 #include "swapchain.h"
+#include "device/device.h"
 
 namespace Rain {
 
@@ -138,9 +139,7 @@ uint32_t SwapChain::BeginFrame() {
   return image_index;
 }
 
-VkResult SwapChain::EndFrame(VkCommandBuffer* command_buffer,
-                             VkQueue graphic_queue, VkQueue present_queue,
-                             uint32_t image_index) {
+VkResult SwapChain::EndFrame(uint32_t image_index) {
   VkSubmitInfo submit_info{};
   submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -151,14 +150,14 @@ VkResult SwapChain::EndFrame(VkCommandBuffer* command_buffer,
   submit_info.pWaitSemaphores = wait_semaphores;
   submit_info.pWaitDstStageMask = wait_stages;
   submit_info.commandBufferCount = 1;
-  submit_info.pCommandBuffers = command_buffer;
+  submit_info.pCommandBuffers = &device_->command_buffers_[image_index];
   VkSemaphore signal_semaphores[] = {
       render_finished_semaphores_[current_frame_]};
   submit_info.signalSemaphoreCount = 1;
   submit_info.pSignalSemaphores = signal_semaphores;
 
   vkResetFences(device_->device_, 1, &in_flight_fences_[current_frame_]);
-  VkResult result = vkQueueSubmit(graphic_queue, 1, &submit_info,
+  VkResult result = vkQueueSubmit(device_->graphics_queue_, 1, &submit_info,
                                   in_flight_fences_[current_frame_]);
   if (result != VK_SUCCESS) {
     spdlog::error("queue submition failed");
@@ -173,7 +172,7 @@ VkResult SwapChain::EndFrame(VkCommandBuffer* command_buffer,
   present_info.swapchainCount = 1;
   present_info.pSwapchains = swap_chains;
   present_info.pImageIndices = &image_index;
-  result = vkQueuePresentKHR(present_queue, &present_info);
+  result = vkQueuePresentKHR(device_->present_queue_, &present_info);
   if (result != VK_SUCCESS) {
     spdlog::error("queue presentation failed");
     return result;

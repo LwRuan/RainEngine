@@ -113,7 +113,6 @@ void Engine::Init() {
                              present_queue_family, nullptr,
                              &physical_device_->device_extensions_);
     if (result != VK_SUCCESS) {
-      spdlog::error("logical device creation failed");
       CleanUp();
       exit(1);
     } else
@@ -166,80 +165,44 @@ void Engine::Init() {
     spdlog::debug("framebuffers created");
   }
 
-  {  // create command pool
-    uint32_t graphics_queue_family, present_queue_family;
-    physical_device_->GetGraphicsPresentQueueFamily(graphics_queue_family,
-                                                    present_queue_family);
-    VkCommandPoolCreateInfo pool_info{};
-    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pool_info.queueFamilyIndex = graphics_queue_family;
-    VkResult result = vkCreateCommandPool(device_->device_, &pool_info, nullptr,
-                                          &command_pool_);
-    if (result != VK_SUCCESS) {
-      spdlog::error("command pool creation failed");
-      CleanUp();
-      exit(1);
-    } else {
-      spdlog::debug("command pool created");
-    }
-  }
-
-  {  // allocate and record command buffers
-    command_buffers_.resize(framebuffers_.size());
-    VkCommandBufferAllocateInfo alloc_info{};
-    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    alloc_info.commandPool = command_pool_;
-    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    alloc_info.commandBufferCount = (uint32_t)command_buffers_.size();
-    VkResult result = vkAllocateCommandBuffers(device_->device_, &alloc_info,
-                                               command_buffers_.data());
-    if (result != VK_SUCCESS) {
-      spdlog::error("command buffers allocation failed");
-      CleanUp();
-      exit(1);
-    } else {
-      spdlog::debug("command buffer allocated");
-    }
-    for (size_t i = 0; i < command_buffers_.size(); ++i) {
-      VkCommandBufferBeginInfo begin_info{};
-      begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-      begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-      result = vkBeginCommandBuffer(command_buffers_[i], &begin_info);
-      if (result != VK_SUCCESS) {
-        spdlog::error("command buffer recording start failed");
-        CleanUp();
-        exit(1);
-      }
-      VkRenderPassBeginInfo render_pass_info{};
-      render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-      render_pass_info.renderPass = render_pass_->render_pass_;
-      render_pass_info.framebuffer = framebuffers_[i].framebuffer_;
-      render_pass_info.renderArea.offset = {0, 0};
-      render_pass_info.renderArea.extent = swap_chain_->extent_;
-      VkClearValue clear_color = {{{0.2f, 0.2f, 0.2f, 1.0f}}};
-      render_pass_info.clearValueCount = 1;
-      render_pass_info.pClearValues = &clear_color;
-      vkCmdBeginRenderPass(command_buffers_[i], &render_pass_info,
-                           VK_SUBPASS_CONTENTS_INLINE);
-      vkCmdBindPipeline(command_buffers_[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                        pipeline_->pipeline_);
-      vkCmdDraw(command_buffers_[i], 3, 1, 0, 0);
-      vkCmdEndRenderPass(command_buffers_[i]);
-      if (vkEndCommandBuffer(command_buffers_[i]) != VK_SUCCESS) {
-        spdlog::error("command buffer recording failed");
-        CleanUp();
-        exit(1);
-      }
-    }
-    spdlog::debug("command buffer recorded");
-  }
+  // allocate and record command buffers
+  device_->AllocateCommandBuffers(swap_chain_);
 }
 
 void Engine::DrawFrame() {
   uint32_t image_index = swap_chain_->BeginFrame();
-  swap_chain_->EndFrame(&command_buffers_[image_index],
-                        device_->graphics_queue_, device_->present_queue_,
-                        image_index);
+  VkCommandBuffer command_buffer = device_->command_buffers_[image_index];
+  vkResetCommandBuffer(command_buffer,
+                       VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+  VkCommandBufferBeginInfo begin_info{};
+  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  VkResult result = vkBeginCommandBuffer(command_buffer, &begin_info);
+  if (result != VK_SUCCESS) {
+    spdlog::error("command buffer recording start failed");
+    CleanUp();
+    exit(1);
+  }
+  VkRenderPassBeginInfo render_pass_info{};
+  render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  render_pass_info.renderPass = render_pass_->render_pass_;
+  render_pass_info.framebuffer = framebuffers_[image_index].framebuffer_;
+  render_pass_info.renderArea.offset = {0, 0};
+  render_pass_info.renderArea.extent = swap_chain_->extent_;
+  VkClearValue clear_color = {{{0.2f, 0.2f, 0.2f, 1.0f}}};
+  render_pass_info.clearValueCount = 1;
+  render_pass_info.pClearValues = &clear_color;
+  vkCmdBeginRenderPass(command_buffer, &render_pass_info,
+                       VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipeline_->pipeline_);
+  vkCmdDraw(command_buffer, 3, 1, 0, 0);
+  vkCmdEndRenderPass(command_buffer);
+  if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
+    spdlog::error("command buffer recording failed");
+    CleanUp();
+    exit(1);
+  }
+  swap_chain_->EndFrame(image_index);
 }
 
 void Engine::MainLoop() {
@@ -253,10 +216,6 @@ void Engine::MainLoop() {
 void Engine::CleanUp() {
   if (instance_) {
     if (device_) {
-      if (command_pool_ != VK_NULL_HANDLE) {
-        vkDestroyCommandPool(device_->device_, command_pool_, nullptr);
-        spdlog::debug("command pool destroyed");
-      }
       if (swap_chain_) {
         swap_chain_->Destroy();
         delete swap_chain_;

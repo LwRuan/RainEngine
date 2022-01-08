@@ -5,10 +5,11 @@
 
 #include <vector>
 
-#include "device/device.h"
+// #include "device/device.h"
 #include "device/physicaldevice.h"
 
 namespace Rain {
+class Device;
 class SwapChain {
  public:
   Device* device_ = nullptr;
@@ -30,8 +31,7 @@ class SwapChain {
                 GLFWwindow* window_, VkSurfaceKHR surface);
   VkResult CreateImageViews();
   uint32_t BeginFrame();
-  VkResult EndFrame(VkCommandBuffer* command_buffer, VkQueue graphic_queue,
-                    VkQueue present_queue, uint32_t image_index);
+  VkResult EndFrame(uint32_t image_index);
   void Destroy();
 };
 };  // namespace Rain
