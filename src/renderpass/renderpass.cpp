@@ -44,14 +44,12 @@ VkResult RenderPass::Init(VkDevice device, const VkFormat& format) {
     spdlog::error("render pass creation failed");
     return result;
   }
-  spdlog::debug("render pass created");
   return VK_SUCCESS;
 }
 
 void RenderPass::Destroy(VkDevice device) {
   if (render_pass_ != VK_NULL_HANDLE) {
     vkDestroyRenderPass(device, render_pass_, nullptr);
-    spdlog::debug("render pass destroyed");
   }
 }
 };  // namespace Rain

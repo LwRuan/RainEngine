@@ -30,7 +30,7 @@ class SwapChain {
   VkResult Init(Device* device, PhysicalDevice* physical_device,
                 GLFWwindow* window_, VkSurfaceKHR surface);
   VkResult CreateImageViews();
-  uint32_t BeginFrame();
+  uint32_t BeginFrame(bool& resized);
   VkResult EndFrame(uint32_t image_index);
   void Destroy();
 };

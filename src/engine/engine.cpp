@@ -22,6 +22,8 @@ void Engine::Init() {
 
     window_ =
         glfwCreateWindow(width_, height_, "Rain Engine", nullptr, nullptr);
+    glfwSetWindowUserPointer(window_, this);
+    glfwSetFramebufferSizeCallback(window_, Engine::WindowResizeCallback);
   }
 
   if (enable_validation_layers_) {
@@ -137,6 +139,8 @@ void Engine::Init() {
         VK_SUCCESS) {
       CleanUp();
       exit(1);
+    } else {
+      spdlog::debug("render pass created");
     }
   }
 
@@ -170,7 +174,12 @@ void Engine::Init() {
 }
 
 void Engine::DrawFrame() {
-  uint32_t image_index = swap_chain_->BeginFrame();
+  uint32_t image_index = swap_chain_->BeginFrame(window_resized_);
+  while (window_resized_) {
+    window_resized_ = false;
+    RecreateSwapChain();
+    image_index = swap_chain_->BeginFrame(window_resized_);
+  }
   VkCommandBuffer command_buffer = device_->command_buffers_[image_index];
   vkResetCommandBuffer(command_buffer,
                        VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
@@ -218,14 +227,17 @@ void Engine::CleanUp() {
     if (device_) {
       if (swap_chain_) {
         swap_chain_->Destroy();
+        spdlog::debug("swap chain destroyed");
         delete swap_chain_;
       }
       if (pipeline_) {
         pipeline_->Destroy(device_->device_);
+        spdlog::debug("pipeline destroyed");
         delete pipeline_;
       }
       if (render_pass_) {
         render_pass_->Destroy(device_->device_);
+        spdlog::debug("render pass destroyed");
         delete render_pass_;
       }
       for (auto framebuffer : framebuffers_) {
@@ -240,8 +252,8 @@ void Engine::CleanUp() {
       delete debug_utils_ext_;
     }
     if (surface_) {
-      spdlog::debug("window surface destroyed");
       vkDestroySurfaceKHR(instance_, surface_, nullptr);
+      spdlog::debug("window surface destroyed");
     }
     vkDestroyInstance(instance_, nullptr);
     spdlog::debug("instance destroyed");
@@ -286,6 +298,77 @@ std::vector<const char*> Engine::GetRequiredExtensions() {
   extensions.insert(extensions.end(), glfw_extensions,
                     glfw_extensions + glfw_extension_count);
   return extensions;
+}
+
+void Engine::CleanUpSwapChain() {
+  for (auto framebuffer : framebuffers_) {
+    framebuffer.Destroy(device_->device_);
+  }
+  vkFreeCommandBuffers(device_->device_, device_->command_pool_,
+                       static_cast<uint32_t>(device_->command_buffers_.size()),
+                       device_->command_buffers_.data());
+  if (pipeline_) {
+    pipeline_->Destroy(device_->device_);
+  }
+  if (render_pass_) {
+    render_pass_->Destroy(device_->device_);
+  }
+  if (swap_chain_) {
+    swap_chain_->Destroy();
+  }
+}
+
+void Engine::RecreateSwapChain() {
+  vkDeviceWaitIdle(device_->device_);
+  CleanUpSwapChain();
+  physical_device_->swap_chain_support_details_ =
+      physical_device_->QuerySwapChainSupport(physical_device_->device_,
+                                              surface_, false);
+  {  // create swap chain
+    if (swap_chain_->Init(device_, physical_device_, window_, surface_) !=
+        VK_SUCCESS) {
+      spdlog::error("swap chain creation failed");
+      CleanUp();
+      exit(1);
+    }
+  }
+
+  {  // create render pass
+    if (render_pass_->Init(device_->device_, swap_chain_->image_format_) !=
+        VK_SUCCESS) {
+      CleanUp();
+      exit(1);
+    }
+  }
+
+  {  // create pipeline
+    if (pipeline_->Init(device_->device_, swap_chain_->extent_,
+                        render_pass_->render_pass_) != VK_SUCCESS) {
+      spdlog::error("pipeline creation failed");
+      CleanUp();
+      exit(1);
+    }
+  }
+
+  {  // create framebuffers
+    framebuffers_.resize(swap_chain_->image_views_.size(), Framebuffer());
+    for (size_t i = 0; i < swap_chain_->image_views_.size(); ++i) {
+      if (framebuffers_[i].Init(device_->device_, swap_chain_->extent_,
+                                swap_chain_->image_views_[i],
+                                render_pass_->render_pass_) != VK_SUCCESS) {
+        CleanUp();
+        exit(1);
+      }
+    }
+  }
+
+  // allocate and record command buffers
+  device_->AllocateCommandBuffers(swap_chain_);
+}
+
+void Engine::WindowResizeCallback(GLFWwindow* window, int width, int height) {
+  auto engine = reinterpret_cast<Engine*>(glfwGetWindowUserPointer(window));
+  engine->window_resized_ = true;
 }
 
 };  // namespace Rain

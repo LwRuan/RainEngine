@@ -18,7 +18,7 @@ VkResult SwapChain::Init(Device* device, PhysicalDevice* physical_device,
   if (max_image_count > 0 && image_count > max_image_count) {
     image_count = max_image_count;
   }
-  spdlog::debug("swap chain image count: {}", image_count);
+  // spdlog::debug("swap chain image count: {}", image_count);
   VkSwapchainCreateInfoKHR create_info{};
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   create_info.surface = surface;
@@ -65,7 +65,8 @@ VkResult SwapChain::Init(Device* device, PhysicalDevice* physical_device,
   image_available_semaphores_.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
   render_finished_semaphores_.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
   in_flight_fences_.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
-  images_in_flight_.resize(images_.size(), VK_NULL_HANDLE);
+  images_in_flight_.resize(images_.size());
+  std::fill(images_in_flight_.begin(), images_in_flight_.end(), VK_NULL_HANDLE);
   VkSemaphoreCreateInfo semaphore_info{};
   semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   VkFenceCreateInfo fence_signaled_info{};
@@ -124,13 +125,17 @@ VkResult SwapChain::CreateImageViews() {
   return VK_SUCCESS;
 }
 
-uint32_t SwapChain::BeginFrame() {
+uint32_t SwapChain::BeginFrame(bool &resized) {
   vkWaitForFences(device_->device_, 1, &in_flight_fences_[current_frame_],
                   VK_TRUE, UINT64_MAX);
   uint32_t image_index;
-  vkAcquireNextImageKHR(device_->device_, swap_chain_, UINT64_MAX,
+  VkResult result = vkAcquireNextImageKHR(device_->device_, swap_chain_, UINT64_MAX,
                         image_available_semaphores_[current_frame_],
                         VK_NULL_HANDLE, &image_index);
+  if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+    resized = true;
+    return 0;
+  }
   if (images_in_flight_[image_index] != VK_NULL_HANDLE) {
     vkWaitForFences(device_->device_, 1, &images_in_flight_[image_index],
                     VK_TRUE, UINT64_MAX);
@@ -202,7 +207,6 @@ void SwapChain::Destroy() {
     }
     if (swap_chain_ != VK_NULL_HANDLE) {
       vkDestroySwapchainKHR(device_->device_, swap_chain_, nullptr);
-      spdlog::debug("swap chain destroyed");
     }
   }
 }

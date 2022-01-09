@@ -87,7 +87,7 @@ VkResult Device::AllocateCommandBuffers(SwapChain* swap_chain) {
     spdlog::error("command buffers allocation failed");
     return result;
   } else {
-    spdlog::debug("command buffer allocated");
+    // spdlog::debug("command buffer allocated");
   }
   return VK_SUCCESS;
 }

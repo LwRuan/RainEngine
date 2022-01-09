@@ -41,7 +41,7 @@ VkResult Shader::Init(VkDevice device, const std::string& name) {
         spdlog::error("{} module creation failed", name + "." + file_ext[i]);
         return result;
       }
-      spdlog::debug("shader {} loaded", name + "." + file_ext[i]);
+      // spdlog::debug("shader {} loaded", name + "." + file_ext[i]);
     }
   }
   return VK_SUCCESS;

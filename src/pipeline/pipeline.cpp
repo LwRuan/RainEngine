@@ -113,7 +113,6 @@ VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
     spdlog::error("pipeline layout creation failed");
     return result;
   }
-  spdlog::debug("pipeline layout created");
 
   VkGraphicsPipelineCreateInfo pipeline_info{};
   pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -148,11 +147,9 @@ VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
 void Pipeline::Destroy(VkDevice device) {
   if (layout_ != VK_NULL_HANDLE) {
     vkDestroyPipelineLayout(device, layout_, nullptr);
-    spdlog::debug("pipeline layout destroyed");
   }
   if (pipeline_ != VK_NULL_HANDLE) {
     vkDestroyPipeline(device, pipeline_, nullptr);
-    spdlog::debug("pipeline destroyed");
   }
 }
 };  // namespace Rain

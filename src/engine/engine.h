@@ -16,9 +16,6 @@
 namespace Rain {
 class Engine {
  public:
-  uint32_t width_ = 800;
-  uint32_t height_ = 600;
-
   GLFWwindow* window_ = nullptr;
   VkInstance instance_ = VK_NULL_HANDLE;
   PhysicalDevice* physical_device_ = nullptr;
@@ -35,6 +32,10 @@ class Engine {
       "VK_LAYER_KHRONOS_validation"};
   const std::vector<const char*> instance_extensions_ = {};
 
+  uint32_t width_ = 800;
+  uint32_t height_ = 600;
+  bool window_resized_ = false;
+
   Engine();
   void Init();
   void DrawFrame();
@@ -42,5 +43,8 @@ class Engine {
   void CleanUp();
   bool CheckValidationLayerSupport();
   std::vector<const char*> GetRequiredExtensions();
+  void CleanUpSwapChain();
+  void RecreateSwapChain();
+  static void WindowResizeCallback(GLFWwindow* window, int width, int height);
 };
 };  // namespace Rain
