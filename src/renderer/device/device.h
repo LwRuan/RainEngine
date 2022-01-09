@@ -10,6 +10,8 @@ namespace Rain {
 class Device {
  public:
   VkDevice device_ = VK_NULL_HANDLE;
+  VkPhysicalDevice physical_device_ = VK_NULL_HANDLE;
+  VkPhysicalDeviceMemoryProperties physicalmem_properties_;
   VkQueue graphics_queue_ = VK_NULL_HANDLE;
   VkQueue present_queue_ = VK_NULL_HANDLE;
   VkCommandPool command_pool_ = VK_NULL_HANDLE;
@@ -22,6 +24,7 @@ class Device {
                 const std::vector<const char*>* layers,
                 const std::vector<const char*>* extensions);
   VkResult AllocateCommandBuffers(SwapChain* swap_chain);
+  uint32_t FindMemoryTypeIndex(uint32_t type_filter, VkMemoryPropertyFlags properties);
   void Destroy();
 };
 };  // namespace Rain

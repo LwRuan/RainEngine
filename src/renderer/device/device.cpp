@@ -10,6 +10,9 @@ VkResult Device::Init(VkPhysicalDevice physical_device,
                       uint32_t present_queue_family_index,
                       const std::vector<const char*>* layers,
                       const std::vector<const char*>* extensions) {
+  physical_device_ = physical_device;
+  vkGetPhysicalDeviceMemoryProperties(physical_device,
+                                      &physicalmem_properties_);
   spdlog::debug("queue family {} picked for graphics",
                 graphics_queue_family_index);
   spdlog::debug("queue family {} picked for present",
@@ -81,8 +84,8 @@ VkResult Device::AllocateCommandBuffers(SwapChain* swap_chain) {
   alloc_info.commandPool = command_pool_;
   alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   alloc_info.commandBufferCount = (uint32_t)command_buffers_.size();
-  VkResult result = vkAllocateCommandBuffers(device_, &alloc_info,
-                                              command_buffers_.data());
+  VkResult result =
+      vkAllocateCommandBuffers(device_, &alloc_info, command_buffers_.data());
   if (result != VK_SUCCESS) {
     spdlog::error("command buffers allocation failed");
     return result;
@@ -90,6 +93,20 @@ VkResult Device::AllocateCommandBuffers(SwapChain* swap_chain) {
     // spdlog::debug("command buffer allocated");
   }
   return VK_SUCCESS;
+}
+
+uint32_t Device::FindMemoryTypeIndex(uint32_t type_filter,
+                                     VkMemoryPropertyFlags properties) {
+  for (uint32_t i = 0; i < physicalmem_properties_.memoryTypeCount; ++i) {
+    if ((type_filter & (1 << i)) &&
+        (physicalmem_properties_.memoryTypes[i].propertyFlags & properties) ==
+            properties) {
+      return i;
+    }
+  }
+  spdlog::error("no suitable memory type found");
+  exit(1);
+  return 0;
 }
 
 void Device::Destroy() {

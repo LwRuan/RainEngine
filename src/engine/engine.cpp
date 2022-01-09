@@ -171,6 +171,16 @@ void Engine::Init() {
 
   // allocate and record command buffers
   device_->AllocateCommandBuffers(swap_chain_);
+
+  {  // model
+    test_triangle_.n_vert_ = 3;
+    test_triangle_.vertices_ = vertices_;
+    test_triangle_.colors_ = colors_;
+    if(test_triangle_.CreateBuffers(device_) != VK_SUCCESS) {
+      CleanUp();
+      exit(1);
+    };
+  }
 }
 
 void Engine::DrawFrame() {
@@ -204,7 +214,11 @@ void Engine::DrawFrame() {
                        VK_SUBPASS_CONTENTS_INLINE);
   vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipeline_->pipeline_);
-  vkCmdDraw(command_buffer, 3, 1, 0, 0);
+  vkCmdBindVertexBuffers(command_buffer, 0,
+                         test_triangle_.vertex_vkbuffers_.size(),
+                         test_triangle_.vertex_vkbuffers_.data(),
+                         test_triangle_.vertex_vkbuffer_offsets_.data());
+  vkCmdDraw(command_buffer, test_triangle_.n_vert_, 1, 0, 0);
   vkCmdEndRenderPass(command_buffer);
   if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
     spdlog::error("command buffer recording failed");
@@ -223,6 +237,7 @@ void Engine::MainLoop() {
 }
 
 void Engine::CleanUp() {
+  test_triangle_.Destroy(device_->device_);
   if (instance_) {
     if (device_) {
       if (swap_chain_) {

@@ -12,6 +12,8 @@
 #include "vkext/debugutils.h"
 #include "framebuffer/framebuffer.h"
 #include "renderpass/renderpass.h"
+#include "model/model.h"
+#include "mathtype.h"
 
 namespace Rain {
 class Engine {
@@ -35,6 +37,18 @@ class Engine {
   uint32_t width_ = 800;
   uint32_t height_ = 600;
   bool window_resized_ = false;
+
+  Model test_triangle_;
+  Vec3f vertices_[3] = {
+    {0.0f, -0.5f, 0.0f},
+    {0.5f, 0.5f, 0.0f},
+    {-0.5f, 0.5f, 0.0f}
+  };
+  Vec3f colors_[3] = {
+    {1.0f, 0.0f, 0.0f},
+    {0.0f, 1.0f, 0.0f},
+    {0.0f, 0.0f, 1.0f}
+  };
 
   Engine();
   void Init();

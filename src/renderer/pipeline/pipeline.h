@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 
 #include "shader/shader.h"
+#include "model/model.h"
 
 namespace Rain {
 class Pipeline {

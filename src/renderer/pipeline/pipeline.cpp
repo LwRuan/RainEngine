@@ -5,7 +5,7 @@ VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
                         VkRenderPass render_pass) {
   shader_ = new Shader;
   VkResult result;
-  result = shader_->Init(device, "triangle");
+  result = shader_->Init(device, "basic");
   if (result != VK_SUCCESS) return result;
 
   const VkShaderStageFlagBits stage_map[Shader::SHADER_STAGE_NUM] = {
@@ -35,12 +35,16 @@ VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
   }
 
   VkPipelineVertexInputStateCreateInfo vertex_input_info{};
+  auto binding_descs = Model::GetBindDescription();
+  auto attr_descs = Model::GetAttributeDescriptions();
   vertex_input_info.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertex_input_info.vertexBindingDescriptionCount = 0;
-  vertex_input_info.pVertexBindingDescriptions = nullptr;
-  vertex_input_info.vertexAttributeDescriptionCount = 0;
-  vertex_input_info.pVertexAttributeDescriptions = nullptr;
+  vertex_input_info.vertexBindingDescriptionCount =
+      static_cast<uint32_t>(binding_descs.size());
+  vertex_input_info.pVertexBindingDescriptions = binding_descs.data();
+  vertex_input_info.vertexAttributeDescriptionCount =
+      static_cast<uint32_t>(attr_descs.size());
+  vertex_input_info.pVertexAttributeDescriptions = attr_descs.data();
 
   VkPipelineInputAssemblyStateCreateInfo input_assembly_info{};
   input_assembly_info.sType =
