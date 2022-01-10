@@ -173,9 +173,11 @@ void Engine::Init() {
   device_->AllocateCommandBuffers(swap_chain_);
 
   {  // model
-    test_triangle_.n_vert_ = 3;
+    test_triangle_.n_vert_ = 4;
     test_triangle_.vertices_ = vertices_;
     test_triangle_.colors_ = colors_;
+    test_triangle_.n_ele_ = 2;
+    test_triangle_.indices_ = indices_;
     if(test_triangle_.CreateBuffers(device_) != VK_SUCCESS) {
       CleanUp();
       exit(1);
@@ -218,7 +220,8 @@ void Engine::DrawFrame() {
                          test_triangle_.vertex_vkbuffers_.size(),
                          test_triangle_.vertex_vkbuffers_.data(),
                          test_triangle_.vertex_vkbuffer_offsets_.data());
-  vkCmdDraw(command_buffer, test_triangle_.n_vert_, 1, 0, 0);
+  vkCmdBindIndexBuffer(command_buffer, test_triangle_.index_buffer_.buffer_, 0, VK_INDEX_TYPE_UINT32);
+  vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(test_triangle_.n_ele_*3), 1, 0, 0, 0);
   vkCmdEndRenderPass(command_buffer);
   if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
     spdlog::error("command buffer recording failed");

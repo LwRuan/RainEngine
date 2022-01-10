@@ -39,15 +39,20 @@ class Engine {
   bool window_resized_ = false;
 
   Model test_triangle_;
-  Vec3f vertices_[3] = {
-    {0.0f, -0.5f, 0.0f},
+  Vec3f vertices_[4] = {
+    {-0.5f, -0.5f, 0.0f},
+    {0.5f, -0.5f, 0.0f},
     {0.5f, 0.5f, 0.0f},
     {-0.5f, 0.5f, 0.0f}
   };
-  Vec3f colors_[3] = {
+  Vec3f colors_[4] = {
     {1.0f, 0.0f, 0.0f},
     {0.0f, 1.0f, 0.0f},
-    {0.0f, 0.0f, 1.0f}
+    {0.0f, 0.0f, 1.0f},
+    {1.0f, 1.0f, 1.0f}
+  };
+  uint32_t indices_[6] = {
+    0, 1, 2, 2, 3, 0
   };
 
   Engine();

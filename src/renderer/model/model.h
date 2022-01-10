@@ -14,10 +14,13 @@ class Model {
   // TODO: not optimal, use vma to alloc a big buffer, then divide to models
  public:
   uint64_t n_vert_ = 0;
+  uint64_t n_ele_ = 0;
   Vec3f* vertices_ = nullptr;
   Vec3f* colors_ = nullptr;
+  uint32_t* indices_ = nullptr;
 
   std::vector<Buffer> vertex_buffers_;
+  Buffer index_buffer_;
   std::vector<VkBuffer> vertex_vkbuffers_;
   std::vector<VkDeviceSize> vertex_vkbuffer_offsets_;
 

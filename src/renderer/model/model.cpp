@@ -6,15 +6,16 @@ VkResult Model::CreateBuffers(Device* device) {
   uint64_t size;
   VkResult result;
 
+  // vertex buffers
   vertex_buffers_.resize(2);
   size = (uint64_t)(sizeof(Vec3f)) * n_vert_;
-  result = vertex_buffers_[0].AllocateDeviceLocal(device, vertices_, size,
-                                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+  result = vertex_buffers_[0].AllocateDeviceLocal(
+      device, vertices_, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
   if (result != VK_SUCCESS) return result;
 
   size = (uint64_t)(sizeof(Vec3f)) * n_vert_;
-  result = vertex_buffers_[1].AllocateDeviceLocal(device, colors_, size,
-                                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+  result = vertex_buffers_[1].AllocateDeviceLocal(
+      device, colors_, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
   if (result != VK_SUCCESS) return result;
 
   vertex_vkbuffers_.clear();
@@ -26,6 +27,12 @@ VkResult Model::CreateBuffers(Device* device) {
     vertex_vkbuffer_offsets_.push_back(0);
   }
 
+  // index buffer
+  size = (uint64_t)(sizeof(uint32_t)) * n_ele_ * 3;
+  result = index_buffer_.AllocateDeviceLocal(device, indices_, size,
+                                             VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+  if (result != VK_SUCCESS) return result;
+
   return VK_SUCCESS;
 }
 
@@ -33,6 +40,7 @@ void Model::Destroy(VkDevice device) {
   for (auto buffer : vertex_buffers_) {
     buffer.Destroy(device);
   }
+  index_buffer_.Destroy(device);
 }
 
 std::vector<VkVertexInputBindingDescription> Model::GetBindDescription() {
