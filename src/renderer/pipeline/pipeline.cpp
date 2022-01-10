@@ -54,9 +54,9 @@ VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
 
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = 0.0f;
+  viewport.y = (float)extent.height;
   viewport.width = (float)extent.width;
-  viewport.height = (float)extent.height;
+  viewport.height = -(float)extent.height;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   VkRect2D scissor{};
@@ -78,7 +78,7 @@ VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
   rasterizer_info.lineWidth = 1.0f;  // TODO: this is a GPU feature
   rasterizer_info.cullMode =
       VK_CULL_MODE_BACK_BIT;  // TODO: need to change in 3D
-  rasterizer_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
+  rasterizer_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
   rasterizer_info.depthBiasEnable = VK_FALSE;
 
   VkPipelineMultisampleStateCreateInfo multisampling_info{};  // Anti-aliasing
