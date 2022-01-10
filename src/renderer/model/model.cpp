@@ -8,12 +8,12 @@ VkResult Model::CreateBuffers(Device* device) {
 
   vertex_buffers_.resize(2);
   size = (uint64_t)(sizeof(Vec3f)) * n_vert_;
-  result = vertex_buffers_[0].Allocate(device, vertices_, size,
+  result = vertex_buffers_[0].AllocateDeviceLocal(device, vertices_, size,
                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
   if (result != VK_SUCCESS) return result;
 
   size = (uint64_t)(sizeof(Vec3f)) * n_vert_;
-  result = vertex_buffers_[1].Allocate(device, colors_, size,
+  result = vertex_buffers_[1].AllocateDeviceLocal(device, colors_, size,
                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
   if (result != VK_SUCCESS) return result;
 

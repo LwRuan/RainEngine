@@ -11,6 +11,7 @@
 
 namespace Rain {
 class Model {
+  // TODO: not optimal, use vma to alloc a big buffer, then divide to models
  public:
   uint64_t n_vert_ = 0;
   Vec3f* vertices_ = nullptr;
