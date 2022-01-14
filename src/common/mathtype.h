@@ -77,4 +77,5 @@ using Vec = Eigen::Matrix<real, d, 1>;
 template <int d>
 using Mat = Eigen::Matrix<real, d, d>;
 
+const float PI_ = 3.14159265f; 
 }  // namespace Rain

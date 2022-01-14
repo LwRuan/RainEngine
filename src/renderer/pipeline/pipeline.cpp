@@ -2,7 +2,7 @@
 
 namespace Rain {
 VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
-                        VkRenderPass render_pass) {
+                        VkRenderPass render_pass, Descriptors* descriptors) {
   shader_ = new Shader;
   VkResult result;
   result = shader_->Init(device, "basic");
@@ -111,7 +111,8 @@ VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
 
   VkPipelineLayoutCreateInfo layout_info{};
   layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  layout_info.setLayoutCount = 0;
+  layout_info.setLayoutCount = 1;
+  layout_info.pSetLayouts = &(descriptors->layout_);
   result = vkCreatePipelineLayout(device, &layout_info, nullptr, &layout_);
   if (result != VK_SUCCESS) {
     spdlog::error("pipeline layout creation failed");
