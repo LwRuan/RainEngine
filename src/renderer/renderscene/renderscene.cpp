@@ -80,7 +80,8 @@ RenderModel::GetAttributeDescriptions() {
   return ret;
 }
 
-VkResult RenderScene::Init(Device* device, SwapChain* swap_chain, Scene* scene) {
+VkResult RenderScene::Init(Device* device, SwapChain* swap_chain,
+                           Scene* scene) {
   VkResult result;
   models_.resize(scene->objects_.size());
   for (size_t i = 0; i < models_.size(); ++i) {
@@ -93,11 +94,12 @@ VkResult RenderScene::Init(Device* device, SwapChain* swap_chain, Scene* scene) 
   }
   camera_ = new Camera;
   float aspect = 1.0;
-  if (swap_chain->extent_.height) aspect = float(swap_chain->extent_.width) / swap_chain->extent_.height;
+  if (swap_chain->extent_.height)
+    aspect = float(swap_chain->extent_.width) / swap_chain->extent_.height;
   camera_->InitData(aspect, 0.25f * PI_, 1.0f, 1000.0f, 3.0f, 0.0f, 0.3f * PI_,
                     Vec3::Zero());
   result = InitUniform(device, swap_chain);
-  if(result != VK_SUCCESS) {
+  if (result != VK_SUCCESS) {
     return result;
   }
   return VK_SUCCESS;
@@ -214,7 +216,6 @@ VkResult RenderScene::InitDescriptor(Device* device) {
     spdlog::error("descriptor pool creation failed");
     return result;
   }
-  
 
   std::vector<VkDescriptorSetLayout> layouts(n_swap_image_ * models_.size(),
                                              layout_);
@@ -230,7 +231,6 @@ VkResult RenderScene::InitDescriptor(Device* device) {
     return result;
   }
 
-  std::vector<VkWriteDescriptorSet> descriptor_writes;
   for (size_t i = 0; i < n_swap_image_; ++i) {
     for (size_t j = 0; j < models_.size(); ++j) {
       VkDescriptorBufferInfo global_info{};
@@ -246,11 +246,9 @@ VkResult RenderScene::InitDescriptor(Device* device) {
       global_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
       global_write.descriptorCount = 1;
       global_write.pBufferInfo = &global_info;
-      descriptor_writes.push_back(global_write);
+      vkUpdateDescriptorSets(device->device_, 1, &global_write, 0, nullptr);
     }
   }
-  vkUpdateDescriptorSets(device->device_, descriptor_writes.size(),
-                         descriptor_writes.data(), 0, nullptr);
 
   return VK_SUCCESS;
 }

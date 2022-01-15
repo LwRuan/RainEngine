@@ -28,6 +28,23 @@ void Scene::Init() {
   test_triangle.n_surfidx_ = 6;
   test_triangle.surface_indices_ = test_triangle.indices_;
   test_triangle.transformation_ = Mat4f::Identity();
+  Object test_1;
+  test_1.n_vert_ = 4;
+  test_1.vertices_ = new Vec3f[4]{{-0.5f, 0.2f, -0.5f},
+                                  {-0.5f, 0.2f, 0.5f},
+                                  {0.5f, 0.2f, 0.5f},
+                                  {0.5f, 0.2f, -0.5f}};
+  test_1.normals_ = new Vec3f[4]{{1.0f, 0.0f, 0.0f},
+                                 {1.0f, 0.0f, 0.0f},
+                                 {1.0f, 0.0f, 0.0f},
+                                 {1.0f, 0.0f, 0.0f}};
+  test_1.n_ele_ = 2;
+  test_1.n_elevert_ = 3;
+  test_1.indices_ = new uint32_t[6]{0, 1, 2, 2, 3, 0};
+  test_1.n_surfidx_ = 6;
+  test_1.surface_indices_ = test_1.indices_;
+  test_1.transformation_ = Mat4f::Identity();
+  objects_.push_back(test_1);
   objects_.push_back(test_triangle);
 }
 
