@@ -3,7 +3,6 @@
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan.h>
 
-#include "descriptor/descriptor.h"
 #include "renderscene/renderscene.h"
 #include "shader/shader.h"
 

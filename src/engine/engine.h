@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "camera/camera.h"
-#include "descriptor/descriptor.h"
 #include "device/device.h"
 #include "device/physicaldevice.h"
 #include "framebuffer/framebuffer.h"
