@@ -4,7 +4,7 @@
 #include <vulkan/vulkan.h>
 
 #include "descriptor/descriptor.h"
-#include "model/model.h"
+#include "renderscene/renderscene.h"
 #include "shader/shader.h"
 
 namespace Rain {
@@ -15,7 +15,7 @@ class Pipeline {
   VkPipeline pipeline_;
 
   VkResult Init(VkDevice device, const VkExtent2D& extent,
-                VkRenderPass render_pass, Descriptors* descriptors);
+                VkRenderPass render_pass, RenderScene* scene);
   void Destroy(VkDevice device);
 };
 };  // namespace Rain

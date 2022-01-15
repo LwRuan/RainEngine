@@ -52,8 +52,9 @@ using Tripletf = Eigen::Triplet<float>;
 using Tripletd = Eigen::Triplet<double>;
 using Tripleti = Eigen::Triplet<int>;
 
-using Eigen::Quaterniond;
-using Eigen::Quaternionf;
+using Quat = Eigen::Quaternion<real>;
+using Quatf = Eigen::Quaternionf;
+using Quatd = Eigen::Quaterniond;
 
 using Vec6f = Eigen::Matrix<float, 6, 1>;
 using Vec6d = Eigen::Matrix<double, 6, 1>;

@@ -2,7 +2,7 @@
 
 namespace Rain {
 VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
-                        VkRenderPass render_pass, Descriptors* descriptors) {
+                        VkRenderPass render_pass, RenderScene* scene) {
   shader_ = new Shader;
   VkResult result;
   result = shader_->Init(device, "basic");
@@ -35,8 +35,8 @@ VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
   }
 
   VkPipelineVertexInputStateCreateInfo vertex_input_info{};
-  auto binding_descs = Model::GetBindDescription();
-  auto attr_descs = Model::GetAttributeDescriptions();
+  auto binding_descs = RenderModel::GetBindDescription();
+  auto attr_descs = RenderModel::GetAttributeDescriptions();
   vertex_input_info.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertex_input_info.vertexBindingDescriptionCount =
@@ -112,7 +112,7 @@ VkResult Pipeline::Init(VkDevice device, const VkExtent2D& extent,
   VkPipelineLayoutCreateInfo layout_info{};
   layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   layout_info.setLayoutCount = 1;
-  layout_info.pSetLayouts = &(descriptors->layout_);
+  layout_info.pSetLayouts = &(scene->layout_);
   result = vkCreatePipelineLayout(device, &layout_info, nullptr, &layout_);
   if (result != VK_SUCCESS) {
     spdlog::error("pipeline layout creation failed");

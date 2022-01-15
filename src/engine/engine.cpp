@@ -133,6 +133,15 @@ void Engine::Init() {
     }
   }
 
+  {  // scene
+    scene_.Init();
+    if (render_scene_.Init(device_, swap_chain_, &scene_) !=
+        VK_SUCCESS) {
+      CleanUp();
+      exit(1);
+    }
+  }
+
   {  // create render pass
     render_pass_ = new RenderPass;
     if (render_pass_->Init(device_->device_, swap_chain_->image_format_) !=
@@ -144,51 +153,11 @@ void Engine::Init() {
     }
   }
 
-  {  // global ubo
-    VkDeviceSize size = sizeof(GlobalUniformData);
-    global_ubs_.resize(swap_chain_->images_.size());
-    for (size_t i = 0; i < global_ubs_.size(); ++i) {
-      if (global_ubs_[i].Allocate(device_, nullptr, size,
-                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) !=
-          VK_SUCCESS) {
-        CleanUp();
-        exit(1);
-      };
-    }
-  }
-
-  {  // create descriptors
-    descriptors_ = new Descriptors;
-    // 1 for camera data
-    if (descriptors_->Init(device_, 1, 0, 0, swap_chain_->images_.size()) !=
-        VK_SUCCESS) {
-      CleanUp();
-      exit(1);
-    } else {
-      spdlog::debug("descriptors created");
-    }
-    for(size_t i=0;i<swap_chain_->images_.size();++i) {
-      VkDescriptorBufferInfo buffer_info{};
-      buffer_info.buffer = global_ubs_[i].buffer_;
-      buffer_info.offset = 0;
-      buffer_info.range = sizeof(GlobalUniformData);
-      VkWriteDescriptorSet descriptor_write{};
-      descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      descriptor_write.dstSet = descriptors_->sets_[i];
-      descriptor_write.dstBinding = 0;
-      descriptor_write.dstArrayElement = 0;
-      descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-      descriptor_write.descriptorCount = 1;
-      descriptor_write.pBufferInfo = &buffer_info;
-      vkUpdateDescriptorSets(device_->device_, 1, &descriptor_write, 0, nullptr);
-    }
-  }
-
   {  // create pipeline
     pipeline_ = new Pipeline;
     if (pipeline_->Init(device_->device_, swap_chain_->extent_,
                         render_pass_->render_pass_,
-                        descriptors_) != VK_SUCCESS) {
+                        &render_scene_) != VK_SUCCESS) {
       spdlog::error("pipeline creation failed");
       CleanUp();
       exit(1);
@@ -213,27 +182,6 @@ void Engine::Init() {
   // allocate and record command buffers
   device_->AllocateCommandBuffers(swap_chain_);
 
-  {  // model
-    test_triangle_.n_vert_ = 4;
-    test_triangle_.vertices_ = vertices_;
-    test_triangle_.colors_ = colors_;
-    test_triangle_.n_ele_ = 2;
-    test_triangle_.indices_ = indices_;
-    if (test_triangle_.CreateBuffers(device_) != VK_SUCCESS) {
-      CleanUp();
-      exit(1);
-    };
-  }
-
-  {  // Camera
-    camera_ = new Camera;
-    float aspect = 1.0;
-    if (swap_chain_->extent_.height)
-      aspect = float(swap_chain_->extent_.width) / swap_chain_->extent_.height;
-    camera_->InitData(aspect, 0.25f * PI_, 1.0f, 1000.0f, 3.0f, 0.0f,
-                      0.3f * PI_, Vec3::Zero());
-  }
-
   timer_.Reset();
 }
 
@@ -244,8 +192,7 @@ void Engine::DrawFrame() {
     RecreateSwapChain();
     image_index = swap_chain_->BeginFrame(window_resized_);
   }
-
-  UpdateGlobalUniformBuffer(image_index);
+  render_scene_.UpdateUniform(device_->device_, image_index);
 
   VkCommandBuffer command_buffer = device_->command_buffers_[image_index];
   vkResetCommandBuffer(command_buffer,
@@ -271,16 +218,10 @@ void Engine::DrawFrame() {
                        VK_SUBPASS_CONTENTS_INLINE);
   vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipeline_->pipeline_);
-  vkCmdBindVertexBuffers(command_buffer, 0,
-                         test_triangle_.vertex_vkbuffers_.size(),
-                         test_triangle_.vertex_vkbuffers_.data(),
-                         test_triangle_.vertex_vkbuffer_offsets_.data());
-  vkCmdBindIndexBuffer(command_buffer, test_triangle_.index_buffer_.buffer_, 0,
-                       VK_INDEX_TYPE_UINT32);
-  vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_->layout_, 0, 1, &descriptors_->sets_[image_index], 0, nullptr);
-  vkCmdDrawIndexed(command_buffer,
-                   static_cast<uint32_t>(test_triangle_.n_ele_ * 3), 1, 0, 0,
-                   0);
+  for (size_t i = 0; i < render_scene_.models_.size(); ++i) {
+    render_scene_.BindAndDraw(command_buffer, pipeline_->layout_, image_index,
+                              i);
+  }
   vkCmdEndRenderPass(command_buffer);
   if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
     spdlog::error("command buffer recording failed");
@@ -298,27 +239,9 @@ void Engine::MainLoop() {
   vkDeviceWaitIdle(device_->device_);
 }
 
-void Engine::UpdateGlobalUniformBuffer(uint32_t image_index) {
-  void* data;
-  vkMapMemory(device_->device_, global_ubs_[image_index].memory_, 0,
-              sizeof(GlobalUniformData), 0, &data);
-  memcpy(data, &camera_->proj_view_, sizeof(Mat4f));
-  vkUnmapMemory(device_->device_, global_ubs_[image_index].memory_);
-}
-
 void Engine::CleanUp() {
-  for (auto buffer : global_ubs_) {
-    buffer.Destroy(device_->device_);
-  }
-  test_triangle_.Destroy(device_->device_);
-  if (camera_) {
-    delete camera_;
-  }
-  if (descriptors_) {
-    descriptors_->Destroy(device_->device_);
-    spdlog::debug("descriptors destroyed");
-    delete descriptors_;
-  }
+  render_scene_.Destroy(device_->device_);
+  scene_.Destroy();
   if (instance_) {
     if (device_) {
       if (swap_chain_) {
@@ -397,10 +320,7 @@ std::vector<const char*> Engine::GetRequiredExtensions() {
 }
 
 void Engine::CleanUpSwapChain() {
-  descriptors_->Destroy(device_->device_);
-  for (auto buffer : global_ubs_) {
-    buffer.Destroy(device_->device_);
-  }
+  render_scene_.DestroyUniform(device_->device_);
   for (auto framebuffer : framebuffers_) {
     framebuffer.Destroy(device_->device_);
   }
@@ -433,6 +353,15 @@ void Engine::RecreateSwapChain() {
     }
   }
 
+  {
+    render_scene_.InitUniform(device_, swap_chain_);
+    float aspect = 1.0;
+    if (swap_chain_->extent_.height)
+      aspect = float(swap_chain_->extent_.width) / swap_chain_->extent_.height;
+    render_scene_.camera_->ResetAspect(aspect);
+    render_scene_.camera_->UpdateData();
+  }
+
   {  // create render pass
     if (render_pass_->Init(device_->device_, swap_chain_->image_format_) !=
         VK_SUCCESS) {
@@ -441,47 +370,10 @@ void Engine::RecreateSwapChain() {
     }
   }
 
-  {  // global ubo
-    VkDeviceSize size = sizeof(GlobalUniformData);
-    global_ubs_.resize(swap_chain_->images_.size());
-    for (size_t i = 0; i < global_ubs_.size(); ++i) {
-      if (global_ubs_[i].Allocate(device_, nullptr, size,
-                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) !=
-          VK_SUCCESS) {
-        CleanUp();
-        exit(1);
-      };
-    }
-  }
-
-  {  // descriptors
-    if (descriptors_->Init(device_, 1, 0, 0, swap_chain_->images_.size()) !=
-        VK_SUCCESS) {
-      CleanUp();
-      exit(1);
-    }
-    for(size_t i=0;i<swap_chain_->images_.size();++i) {
-      VkDescriptorBufferInfo buffer_info{};
-      buffer_info.buffer = global_ubs_[i].buffer_;
-      buffer_info.offset = 0;
-      buffer_info.range = sizeof(GlobalUniformData);
-      VkWriteDescriptorSet descriptor_write{};
-      descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      descriptor_write.dstSet = descriptors_->sets_[i];
-      descriptor_write.dstBinding = 0;
-      descriptor_write.dstArrayElement = 0;
-      descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-      descriptor_write.descriptorCount = 1;
-      descriptor_write.pBufferInfo = &buffer_info;
-      vkUpdateDescriptorSets(device_->device_, 1, &descriptor_write, 0, nullptr);
-    }
-    
-  }
-
   {  // create pipeline
     if (pipeline_->Init(device_->device_, swap_chain_->extent_,
                         render_pass_->render_pass_,
-                        descriptors_) != VK_SUCCESS) {
+                        &render_scene_) != VK_SUCCESS) {
       spdlog::error("pipeline creation failed");
       CleanUp();
       exit(1);
@@ -502,13 +394,6 @@ void Engine::RecreateSwapChain() {
 
   // allocate and record command buffers
   device_->AllocateCommandBuffers(swap_chain_);
-  {
-    float aspect = 1.0;
-    if (swap_chain_->extent_.height)
-      aspect = float(swap_chain_->extent_.width) / swap_chain_->extent_.height;
-    camera_->ResetAspect(aspect);
-    camera_->UpdateData();
-  }
 }
 
 void Engine::WindowResizeCallback(GLFWwindow* window, int width, int height) {
