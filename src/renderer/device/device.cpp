@@ -160,6 +160,15 @@ VkFormat Device::FindSupportFormat(const std::vector<VkFormat>& candidates,
   return VK_FORMAT_UNDEFINED;
 }
 
+uint32_t Device::GetAlignedUniformByteOffset(const uint32_t offset) {
+  VkPhysicalDeviceProperties props;
+  vkGetPhysicalDeviceProperties(physical_device_, &props);
+  static const uint32_t min_alignment = props.limits.minUniformBufferOffsetAlignment;
+  uint32_t aligned_offset = offset + min_alignment - 1;
+  aligned_offset = aligned_offset - (aligned_offset % min_alignment);
+  return aligned_offset;
+}
+
 void Device::Destroy() {
   if (command_pool_ != VK_NULL_HANDLE) {
     vkDestroyCommandPool(device_, command_pool_, nullptr);

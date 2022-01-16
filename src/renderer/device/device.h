@@ -32,6 +32,7 @@ class Device {
   VkFormat FindSupportFormat(const std::vector<VkFormat>& candidates,
                              VkImageTiling tiling,
                              VkFormatFeatureFlags features);
+  uint32_t GetAlignedUniformByteOffset(const uint32_t offset);
   void Destroy();
 };
 };  // namespace Rain

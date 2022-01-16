@@ -1,6 +1,18 @@
 #include "renderscene.h"
 
+#include <array>
+
 namespace Rain {
+
+void RenderModel::Init(Object* obj) {
+  obj_ = obj;
+  uniform_data_.Ka_d_.segment<3>(0) = obj_->material_.Ka_;
+  uniform_data_.Ka_d_[3] = obj_->material_.d_;
+  uniform_data_.Kd_.segment<3>(0) = obj_->material_.Kd_;
+  uniform_data_.Ks_Ns_.segment<3>(0) = obj_->material_.Ks_;
+  uniform_data_.Ks_Ns_[3] = obj_->material_.Ns_;
+  uniform_data_.model_ = obj_->transformation_;
+}
 
 VkResult RenderModel::CreateBuffers(Device* device) {
   uint64_t size;
@@ -84,13 +96,23 @@ VkResult RenderScene::Init(Device* device, SwapChain* swap_chain,
                            Scene* scene) {
   VkResult result;
   models_.resize(scene->objects_.size());
+  uint32_t offset = 0;
   for (size_t i = 0; i < models_.size(); ++i) {
-    models_[i].obj_ = &scene->objects_[i];
+    models_[i].Init(&scene->objects_[i]);
+    models_[i].ubo_offset_ = offset;
+    models_[i].ubo_size_ = sizeof(ModelUniformData);
+    offset += device->GetAlignedUniformByteOffset(sizeof(ModelUniformData));
     result = models_[i].CreateBuffers(device);
     if (result != VK_SUCCESS) {
       spdlog::error("model buffer creation failed");
       return result;
     }
+  }
+  model_ubo_size_ = offset;
+  model_ubo_data_ = new uint8_t[model_ubo_size_];
+  for (size_t i = 0; i < models_.size(); ++i) {
+    memcpy(model_ubo_data_ + models_[i].ubo_offset_, &models_[i].uniform_data_,
+           sizeof(ModelUniformData));
   }
   camera_ = new Camera;
   float aspect = 1.0;
@@ -108,6 +130,8 @@ VkResult RenderScene::Init(Device* device, SwapChain* swap_chain,
 VkResult RenderScene::InitUniform(Device* device, SwapChain* swap_chain) {
   VkResult result;
   n_swap_image_ = swap_chain->images_.size();
+
+  // global
   VkDeviceSize size = sizeof(GlobalUniformData);
   global_ubs_.resize(n_swap_image_);
   for (size_t i = 0; i < n_swap_image_; ++i) {
@@ -117,6 +141,17 @@ VkResult RenderScene::InitUniform(Device* device, SwapChain* swap_chain) {
       return result;
     }
   }
+  // model
+  model_ubs_.resize(n_swap_image_);
+  for (size_t i = 0; i < n_swap_image_; ++i) {
+    result = model_ubs_[i].AllocateDeviceLocal(
+        device, model_ubo_data_, model_ubo_size_,
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+    if (result != VK_SUCCESS) {
+      return result;
+    }
+  }
+
   result = InitDescriptor(device);
   if (result != VK_SUCCESS) {
     return result;
@@ -127,9 +162,14 @@ VkResult RenderScene::InitUniform(Device* device, SwapChain* swap_chain) {
 
 void RenderScene::UpdateUniform(VkDevice device, uint32_t image_index) {
   void* data;
+  GlobalUniformData global_data;
+  global_data.proj_view = camera_->proj_view_;
+  global_data.ambient = ambient_light_;
+  global_data.directional = directional_light_;
+  global_data.light_direction = light_direction_;
   vkMapMemory(device, global_ubs_[image_index].memory_, 0,
               sizeof(GlobalUniformData), 0, &data);
-  memcpy(data, &camera_->proj_view_, sizeof(Mat4f));
+  memcpy(data, &global_data, sizeof(GlobalUniformData));
   vkUnmapMemory(device, global_ubs_[image_index].memory_);
 }
 
@@ -246,7 +286,24 @@ VkResult RenderScene::InitDescriptor(Device* device) {
       global_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
       global_write.descriptorCount = 1;
       global_write.pBufferInfo = &global_info;
-      vkUpdateDescriptorSets(device->device_, 1, &global_write, 0, nullptr);
+
+      VkDescriptorBufferInfo model_info{};
+      model_info.buffer = model_ubs_[i].buffer_;
+      model_info.offset = models_[j].ubo_offset_;
+      model_info.range = models_[j].ubo_size_;
+
+      VkWriteDescriptorSet model_write{};
+      model_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      model_write.dstSet = sets_[i * models_.size() + j];
+      model_write.dstBinding = 1;
+      model_write.dstArrayElement = 0;
+      model_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+      model_write.descriptorCount = 1;
+      model_write.pBufferInfo = &model_info;
+
+      std::array<VkWriteDescriptorSet, 2> writes{global_write, model_write};
+      vkUpdateDescriptorSets(device->device_, writes.size(), writes.data(), 0,
+                             nullptr);
     }
   }
 
@@ -265,6 +322,9 @@ void RenderScene::DestroyUniform(VkDevice device) {
   for (auto buffer : global_ubs_) {
     buffer.Destroy(device);
   }
+  for (auto buffer : model_ubs_) {
+    buffer.Destroy(device);
+  }
 }
 
 void RenderScene::Destroy(VkDevice device) {
@@ -273,5 +333,6 @@ void RenderScene::Destroy(VkDevice device) {
     model.Destroy(device);
   }
   delete camera_;
+  delete model_ubo_data_;
 }
 };  // namespace Rain

@@ -34,16 +34,17 @@ void Scene::Init() {
                                   {-0.5f, 0.2f, 0.5f},
                                   {0.5f, 0.2f, 0.5f},
                                   {0.5f, 0.2f, -0.5f}};
-  test_1.normals_ = new Vec3f[4]{{1.0f, 0.0f, 0.0f},
-                                 {1.0f, 0.0f, 0.0f},
-                                 {1.0f, 0.0f, 0.0f},
-                                 {1.0f, 0.0f, 0.0f}};
+  test_1.normals_ = new Vec3f[4]{{0.0f, 1.0f, 0.0f},
+                                 {0.0f, 1.0f, 0.0f},
+                                 {0.0f, 1.0f, 0.0f},
+                                 {0.0f, 1.0f, 0.0f}};
   test_1.n_ele_ = 2;
   test_1.n_elevert_ = 3;
   test_1.indices_ = new uint32_t[6]{0, 1, 2, 2, 3, 0};
   test_1.n_surfidx_ = 6;
   test_1.surface_indices_ = test_1.indices_;
   test_1.transformation_ = Mat4f::Identity();
+  test_1.transformation_.block<3,3>(0,0) = Eigen::AngleAxisf(PI_/4, Vec3f(0,0,1)).toRotationMatrix();
   objects_.push_back(test_1);
   objects_.push_back(test_triangle);
 }
