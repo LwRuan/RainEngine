@@ -63,9 +63,15 @@ void Camera::UpdateData() {
   if (proj_dirty_) {
     float y_scale = 1.0f / std::tan(fovy_ / 2);
     float x_scale = y_scale / aspect_;
+    // opengl style: z \in [-1, 1]
+    // proj_ << x_scale, 0, 0, 0, 0, y_scale, 0, 0, 0, 0,
+    //     -(z_far_ + z_near_) / (z_far_ - z_near_),
+    //     -2 * z_near_ * z_far_ / (z_far_ - z_near_), 0, 0, -1, 0;
+
+    // Vulkan style: z \in [0, 1]
     proj_ << x_scale, 0, 0, 0, 0, y_scale, 0, 0, 0, 0,
-        -(z_far_ + z_near_) / (z_far_ - z_near_),
-        -2 * z_near_ * z_far_ / (z_far_ - z_near_), 0, 0, -1, 0;
+        -z_far_ / (z_far_ - z_near_), -z_near_ * z_far_ / (z_far_ - z_near_), 0,
+        0, -1, 0;
   }
   if (view_dirty_) {
     view_ << right_.x(), right_.y(), right_.z(), -right_.dot(pos_), up_.x(),

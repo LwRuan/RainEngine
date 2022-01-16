@@ -14,7 +14,7 @@
 
 namespace Rain {
 struct GlobalUniformData {
-  Mat4f proj_view;  // camera
+  alignas(16) Mat4f proj_view;  // camera
 };
 
 struct ModelUniformData {

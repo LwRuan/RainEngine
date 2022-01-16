@@ -24,7 +24,14 @@ class Device {
                 const std::vector<const char*>* layers,
                 const std::vector<const char*>* extensions);
   VkResult AllocateCommandBuffers(SwapChain* swap_chain);
-  uint32_t FindMemoryTypeIndex(uint32_t type_filter, VkMemoryPropertyFlags properties);
+  VkCommandBuffer BeginSingleTimeCommands();
+  void EndSingleTimeCommands(VkCommandBuffer command_buffer);
+  uint32_t FindMemoryTypeIndex(uint32_t type_filter,
+                               VkMemoryPropertyFlags properties);
+  VkFormat FindDepthFormat();
+  VkFormat FindSupportFormat(const std::vector<VkFormat>& candidates,
+                             VkImageTiling tiling,
+                             VkFormatFeatureFlags features);
   void Destroy();
 };
 };  // namespace Rain

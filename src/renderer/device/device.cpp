@@ -95,6 +95,33 @@ VkResult Device::AllocateCommandBuffers(SwapChain* swap_chain) {
   return VK_SUCCESS;
 }
 
+VkCommandBuffer Device::BeginSingleTimeCommands() {
+  VkCommandBufferAllocateInfo alloc_info{};
+  alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  alloc_info.commandPool = command_pool_;
+  alloc_info.commandBufferCount = 1;
+  VkCommandBuffer command_buffer;
+  vkAllocateCommandBuffers(device_, &alloc_info, &command_buffer);
+
+  VkCommandBufferBeginInfo beginInfo{};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  vkBeginCommandBuffer(command_buffer, &beginInfo);
+  return command_buffer;
+}
+
+void Device::EndSingleTimeCommands(VkCommandBuffer command_buffer) {
+  vkEndCommandBuffer(command_buffer);
+  VkSubmitInfo submit_info{};
+  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submit_info.commandBufferCount = 1;
+  submit_info.pCommandBuffers = &command_buffer;
+  vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
+  vkQueueWaitIdle(graphics_queue_);
+  vkFreeCommandBuffers(device_, command_pool_, 1, &command_buffer);
+}
+
 uint32_t Device::FindMemoryTypeIndex(uint32_t type_filter,
                                      VkMemoryPropertyFlags properties) {
   for (uint32_t i = 0; i < physicalmem_properties_.memoryTypeCount; ++i) {
@@ -107,6 +134,30 @@ uint32_t Device::FindMemoryTypeIndex(uint32_t type_filter,
   spdlog::error("no suitable memory type found");
   exit(1);
   return 0;
+}
+
+VkFormat Device::FindDepthFormat() {
+  return FindSupportFormat({VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT,
+                            VK_FORMAT_D24_UNORM_S8_UINT},
+                           VK_IMAGE_TILING_OPTIMAL,
+                           VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+VkFormat Device::FindSupportFormat(const std::vector<VkFormat>& candidates,
+                                   VkImageTiling tiling,
+                                   VkFormatFeatureFlags features) {
+  for (VkFormat format : candidates) {
+    VkFormatProperties props;
+    vkGetPhysicalDeviceFormatProperties(physical_device_, format, &props);
+    if (tiling == VK_IMAGE_TILING_LINEAR &&
+        (props.linearTilingFeatures & features) == features) {
+      return format;
+    } else if (tiling == VK_IMAGE_TILING_OPTIMAL &&
+               (props.optimalTilingFeatures & features) == features) {
+      return format;
+    }
+  }
+  return VK_FORMAT_UNDEFINED;
 }
 
 void Device::Destroy() {

@@ -93,36 +93,13 @@ VkResult Buffer::CreateBuffer(Device* device, uint64_t size,
 
 VkResult Buffer::CopyBuffer(Device* device, VkBuffer src, VkBuffer dst,
                             VkDeviceSize size) {
-  VkCommandBufferAllocateInfo alloc_info{};
-  alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  alloc_info.commandPool = device->command_pool_;
-  alloc_info.commandBufferCount = 1;
-
-  VkCommandBuffer command_buffer;
-  vkAllocateCommandBuffers(device->device_, &alloc_info, &command_buffer);
-
-  VkCommandBufferBeginInfo begin_info{};
-  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  vkBeginCommandBuffer(command_buffer, &begin_info);
-
+  VkCommandBuffer command_buffer = device->BeginSingleTimeCommands();
   VkBufferCopy copy_region{};
   copy_region.srcOffset = 0;
   copy_region.dstOffset = 0;
   copy_region.size = size;
   vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
-  vkEndCommandBuffer(command_buffer);
-
-  VkSubmitInfo submit_info{};
-  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submit_info.commandBufferCount = 1;
-  submit_info.pCommandBuffers = &command_buffer;
-  vkQueueSubmit(device->graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
-  vkQueueWaitIdle(device->graphics_queue_);
-  vkFreeCommandBuffers(device->device_, device->command_pool_, 1,
-                       &command_buffer);
-
+  device->EndSingleTimeCommands(command_buffer);
   return VK_SUCCESS;
 }
 

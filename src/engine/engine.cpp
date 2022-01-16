@@ -144,7 +144,7 @@ void Engine::Init() {
 
   {  // create render pass
     render_pass_ = new RenderPass;
-    if (render_pass_->Init(device_->device_, swap_chain_->image_format_) !=
+    if (render_pass_->Init(device_, swap_chain_->image_format_) !=
         VK_SUCCESS) {
       CleanUp();
       exit(1);
@@ -169,7 +169,7 @@ void Engine::Init() {
   {  // create framebuffers
     framebuffers_.resize(swap_chain_->image_views_.size(), Framebuffer());
     for (size_t i = 0; i < swap_chain_->image_views_.size(); ++i) {
-      if (framebuffers_[i].Init(device_->device_, swap_chain_->extent_,
+      if (framebuffers_[i].Init(device_, swap_chain_->extent_,
                                 swap_chain_->image_views_[i],
                                 render_pass_->render_pass_) != VK_SUCCESS) {
         CleanUp();
@@ -211,9 +211,11 @@ void Engine::DrawFrame() {
   render_pass_info.framebuffer = framebuffers_[image_index].framebuffer_;
   render_pass_info.renderArea.offset = {0, 0};
   render_pass_info.renderArea.extent = swap_chain_->extent_;
-  VkClearValue clear_color = {{{0.6f, 0.6f, 0.6f, 1.0f}}};
-  render_pass_info.clearValueCount = 1;
-  render_pass_info.pClearValues = &clear_color;
+  std::array<VkClearValue, 2> clear_values{};
+  clear_values[0].color = {{0.6f, 0.6f, 0.6f, 1.0f}};
+  clear_values[1].depthStencil = {1.0f, 0};
+  render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+  render_pass_info.pClearValues = clear_values.data();
   vkCmdBeginRenderPass(command_buffer, &render_pass_info,
                        VK_SUBPASS_CONTENTS_INLINE);
   vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -363,7 +365,7 @@ void Engine::RecreateSwapChain() {
   }
 
   {  // create render pass
-    if (render_pass_->Init(device_->device_, swap_chain_->image_format_) !=
+    if (render_pass_->Init(device_, swap_chain_->image_format_) !=
         VK_SUCCESS) {
       CleanUp();
       exit(1);
@@ -383,7 +385,7 @@ void Engine::RecreateSwapChain() {
   {  // create framebuffers
     framebuffers_.resize(swap_chain_->image_views_.size(), Framebuffer());
     for (size_t i = 0; i < swap_chain_->image_views_.size(); ++i) {
-      if (framebuffers_[i].Init(device_->device_, swap_chain_->extent_,
+      if (framebuffers_[i].Init(device_, swap_chain_->extent_,
                                 swap_chain_->image_views_[i],
                                 render_pass_->render_pass_) != VK_SUCCESS) {
         CleanUp();

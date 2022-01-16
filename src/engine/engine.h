@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <vector>
+#include <array>
 
 #include "camera/camera.h"
 #include "device/device.h"
