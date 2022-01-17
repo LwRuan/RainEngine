@@ -18,6 +18,7 @@ class Image {
   VkImageLayout layout_;
 
   VkResult InitDepthImage(Device* device, uint32_t width, uint32_t height);
+  VkResult InitColorImage(Device* device, VkFormat format, uint32_t width, uint32_t height);
   VkResult CreateImage(Device* device, uint32_t width, uint32_t height,
                        VkFormat format, VkImageTiling tiling,
                        VkImageUsageFlags usages,

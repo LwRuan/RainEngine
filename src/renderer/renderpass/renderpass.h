@@ -13,4 +13,12 @@ public:
   VkResult Init(Device* device, const VkFormat& format);
   void Destroy(VkDevice device);
 };
+
+class ImGuiRenderPass {
+public:
+  VkRenderPass render_pass_;
+
+  VkResult Init(Device* device, const VkFormat& format);
+  void Destroy(VkDevice device);
+};
 };  // namespace Rain

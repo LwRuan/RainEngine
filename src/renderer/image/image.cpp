@@ -2,7 +2,7 @@
 
 namespace Rain {
 VkResult Image::InitDepthImage(Device* device, uint32_t width,
-                                uint32_t height) {
+                               uint32_t height) {
   VkResult result;
   format_ = device->FindDepthFormat();
   result = CreateImage(device, width, height, format_, VK_IMAGE_TILING_OPTIMAL,
@@ -27,6 +27,34 @@ VkResult Image::InitDepthImage(Device* device, uint32_t width,
     return result;
   }
   // TransitionLayout(device, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL);
+
+  return VK_SUCCESS;
+}
+
+VkResult Image::InitColorImage(Device* device, VkFormat format, uint32_t width,
+                               uint32_t height) {
+  VkResult result;
+  result = CreateImage(device, width, height, format, VK_IMAGE_TILING_OPTIMAL,
+                       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  if (result != VK_SUCCESS) {
+    return result;
+  }
+  VkImageViewCreateInfo view_info{};
+  view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  view_info.image = image_;
+  view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  view_info.format = format_;
+  view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  view_info.subresourceRange.baseMipLevel = 0;
+  view_info.subresourceRange.levelCount = 1;
+  view_info.subresourceRange.baseArrayLayer = 0;
+  view_info.subresourceRange.layerCount = 1;
+  result = vkCreateImageView(device->device_, &view_info, nullptr, &view_);
+  if (result != VK_SUCCESS) {
+    spdlog::error("image view creation failed");
+    return result;
+  }
 
   return VK_SUCCESS;
 }

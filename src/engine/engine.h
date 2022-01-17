@@ -19,6 +19,7 @@
 #include "steptimer.h"
 #include "surface/swapchain.h"
 #include "vkext/debugutils.h"
+#include "imgui.h"
 
 namespace Rain {
 class Engine {
@@ -33,6 +34,10 @@ class Engine {
   Pipeline* pipeline_ = nullptr;
   std::vector<Framebuffer> framebuffers_;
   StepTimer timer_;
+
+  VkDescriptorPool imgui_pool_ = VK_NULL_HANDLE;
+  ImGuiRenderPass* imgui_render_pass_ = nullptr;
+  std::vector<ImGuiFramebuffer> imgui_framebuffers_;
 
   DebugUtilsEXT* debug_utils_ext_ = nullptr;
   bool enable_validation_layers_;
@@ -51,6 +56,7 @@ class Engine {
 
   Engine();
   void Init();
+  VkResult InitImGui();
   void DrawFrame();
   void UpdateGlobalUniformBuffer(uint32_t image_index);
   void MainLoop();

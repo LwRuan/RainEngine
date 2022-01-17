@@ -3,6 +3,8 @@
 #include <cstring>
 #include <iostream>
 
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_vulkan.h"
 #include "spdlog/spdlog.h"
 
 namespace Rain {
@@ -160,6 +162,12 @@ void Engine::Init() {
     } else {
       spdlog::debug("render pass created");
     }
+    imgui_render_pass_ = new ImGuiRenderPass;
+    if (imgui_render_pass_->Init(device_, swap_chain_->image_format_) !=
+        VK_SUCCESS) {
+      CleanUp();
+      exit(1);
+    }
   }
 
   {  // create pipeline
@@ -176,11 +184,18 @@ void Engine::Init() {
   }
 
   {  // create framebuffers
-    framebuffers_.resize(swap_chain_->image_views_.size(), Framebuffer());
+    framebuffers_.resize(swap_chain_->image_views_.size());
+    imgui_framebuffers_.resize(swap_chain_->image_views_.size());
     for (size_t i = 0; i < swap_chain_->image_views_.size(); ++i) {
       if (framebuffers_[i].Init(device_, swap_chain_->extent_,
                                 swap_chain_->image_views_[i],
                                 render_pass_->render_pass_) != VK_SUCCESS) {
+        CleanUp();
+        exit(1);
+      }
+      if (imgui_framebuffers_[i].Init(
+              device_, swap_chain_->extent_, swap_chain_->image_views_[i],
+              imgui_render_pass_->render_pass_) != VK_SUCCESS) {
         CleanUp();
         exit(1);
       }
@@ -190,9 +205,66 @@ void Engine::Init() {
 
   // allocate and record command buffers
   device_->AllocateCommandBuffers(swap_chain_);
+  InitImGui();
+}
+
+VkResult Engine::InitImGui() {
+  VkResult result;
+  VkDescriptorPoolSize pool_sizes[] = {
+      {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+      {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+      {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+      {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+      {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+      {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
+  VkDescriptorPoolCreateInfo pool_info = {};
+  pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+  pool_info.maxSets = 1000;
+  pool_info.poolSizeCount = std::size(pool_sizes);
+  pool_info.pPoolSizes = pool_sizes;
+
+  result = vkCreateDescriptorPool(device_->device_, &pool_info, nullptr,
+                                  &imgui_pool_);
+  if (result != VK_SUCCESS) {
+    spdlog::error("imgui descriptor pool creation failed");
+    return result;
+  }
+  uint32_t graphics_queue_family, present_queue_family;
+  physical_device_->GetGraphicsPresentQueueFamily(graphics_queue_family,
+                                                  present_queue_family);
+  ImGui::CreateContext();
+  ImGui::StyleColorsDark();
+  ImGui_ImplGlfw_InitForVulkan(window_, true);
+  ImGui_ImplVulkan_InitInfo init_info = {};
+  init_info.Instance = instance_;
+  init_info.PhysicalDevice = physical_device_->device_;
+  init_info.Device = device_->device_;
+  init_info.QueueFamily = graphics_queue_family;
+  init_info.Queue = device_->graphics_queue_;
+  init_info.DescriptorPool = imgui_pool_;
+  init_info.MinImageCount = swap_chain_->images_.size();
+  init_info.ImageCount = swap_chain_->images_.size();
+  init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+  ImGui_ImplVulkan_Init(&init_info, imgui_render_pass_->render_pass_);
+  VkCommandBuffer command_buffer = device_->BeginSingleTimeCommands();
+  ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+  device_->EndSingleTimeCommands(command_buffer);
+  ImGui_ImplVulkan_DestroyFontUploadObjects();
+  return VK_SUCCESS;
 }
 
 void Engine::DrawFrame() {
+  ImGui_ImplVulkan_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+  ImGui::ShowDemoWindow();
+  ImGui::Render();
   uint32_t image_index = swap_chain_->BeginFrame(window_resized_);
   while (window_resized_) {
     window_resized_ = false;
@@ -232,6 +304,18 @@ void Engine::DrawFrame() {
                               i);
   }
   vkCmdEndRenderPass(command_buffer);
+  VkRenderPassBeginInfo imgui_pass_info = {};
+  imgui_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  imgui_pass_info.renderPass = imgui_render_pass_->render_pass_;
+  imgui_pass_info.framebuffer = imgui_framebuffers_[image_index].framebuffer_;
+  imgui_pass_info.renderArea.extent = swap_chain_->extent_;
+  imgui_pass_info.clearValueCount = 1;
+  imgui_pass_info.pClearValues = &clear_values[0];
+  vkCmdBeginRenderPass(command_buffer, &imgui_pass_info,
+                       VK_SUBPASS_CONTENTS_INLINE);
+  ImDrawData* imgui_data = ImGui::GetDrawData();
+  ImGui_ImplVulkan_RenderDrawData(imgui_data, command_buffer);
+  vkCmdEndRenderPass(command_buffer);
   if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
     spdlog::error("command buffer recording failed");
     CleanUp();
@@ -251,6 +335,10 @@ void Engine::MainLoop() {
 }
 
 void Engine::CleanUp() {
+  ImGui_ImplVulkan_Shutdown();
+  if (imgui_pool_) {
+    vkDestroyDescriptorPool(device_->device_, imgui_pool_, nullptr);
+  }
   render_scene_.Destroy(device_->device_);
   scene_.Destroy();
   if (instance_) {
@@ -270,7 +358,14 @@ void Engine::CleanUp() {
         spdlog::debug("render pass destroyed");
         delete render_pass_;
       }
+      if (imgui_render_pass_) {
+        imgui_render_pass_->Destroy(device_->device_);
+        delete imgui_render_pass_;
+      }
       for (auto framebuffer : framebuffers_) {
+        framebuffer.Destroy(device_->device_);
+      }
+      for (auto framebuffer : imgui_framebuffers_) {
         framebuffer.Destroy(device_->device_);
       }
       spdlog::debug("framebuffers destroyed");
@@ -335,6 +430,9 @@ void Engine::CleanUpSwapChain() {
   for (auto framebuffer : framebuffers_) {
     framebuffer.Destroy(device_->device_);
   }
+  for (auto framebuffer : imgui_framebuffers_) {
+    framebuffer.Destroy(device_->device_);
+  }
   vkFreeCommandBuffers(device_->device_, device_->command_pool_,
                        static_cast<uint32_t>(device_->command_buffers_.size()),
                        device_->command_buffers_.data());
@@ -343,6 +441,9 @@ void Engine::CleanUpSwapChain() {
   }
   if (render_pass_) {
     render_pass_->Destroy(device_->device_);
+  }
+  if (imgui_render_pass_) {
+    imgui_render_pass_->Destroy(device_->device_);
   }
   if (swap_chain_) {
     swap_chain_->Destroy();
@@ -378,6 +479,11 @@ void Engine::RecreateSwapChain() {
       CleanUp();
       exit(1);
     }
+    if (imgui_render_pass_->Init(device_, swap_chain_->image_format_) !=
+        VK_SUCCESS) {
+      CleanUp();
+      exit(1);
+    }
   }
 
   {  // create pipeline
@@ -391,11 +497,18 @@ void Engine::RecreateSwapChain() {
   }
 
   {  // create framebuffers
-    framebuffers_.resize(swap_chain_->image_views_.size(), Framebuffer());
+    framebuffers_.resize(swap_chain_->image_views_.size());
+    imgui_framebuffers_.resize(swap_chain_->image_views_.size());
     for (size_t i = 0; i < swap_chain_->image_views_.size(); ++i) {
       if (framebuffers_[i].Init(device_, swap_chain_->extent_,
                                 swap_chain_->image_views_[i],
                                 render_pass_->render_pass_) != VK_SUCCESS) {
+        CleanUp();
+        exit(1);
+      }
+      if (imgui_framebuffers_[i].Init(
+              device_, swap_chain_->extent_, swap_chain_->image_views_[i],
+              imgui_render_pass_->render_pass_) != VK_SUCCESS) {
         CleanUp();
         exit(1);
       }
@@ -404,6 +517,9 @@ void Engine::RecreateSwapChain() {
 
   // allocate and record command buffers
   device_->AllocateCommandBuffers(swap_chain_);
+
+  // imgui
+  ImGui_ImplVulkan_SetMinImageCount(swap_chain_->images_.size());
 }
 
 void Engine::WindowResizeCallback(GLFWwindow* window, int width, int height) {
@@ -413,6 +529,7 @@ void Engine::WindowResizeCallback(GLFWwindow* window, int width, int height) {
 
 void Engine::KeyCallback(GLFWwindow* window, int key, int scancode, int action,
                          int mods) {
+  if (ImGui::GetIO().WantCaptureMouse) return;
   if (action == GLFW_PRESS) {
     switch (key) {
       case GLFW_KEY_ESCAPE:
@@ -427,6 +544,7 @@ void Engine::KeyCallback(GLFWwindow* window, int key, int scancode, int action,
 
 void Engine::MouseButtonCallback(GLFWwindow* window, int button, int action,
                                  int mods) {
+  if (ImGui::GetIO().WantCaptureMouse) return;
   auto engine = reinterpret_cast<Engine*>(glfwGetWindowUserPointer(window));
   if (action == GLFW_PRESS) {
     glfwGetCursorPos(window, &engine->last_mouse_pos_.x(),
@@ -435,6 +553,7 @@ void Engine::MouseButtonCallback(GLFWwindow* window, int button, int action,
 }
 
 void Engine::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
+  if (ImGui::GetIO().WantCaptureMouse) return;
   auto engine = reinterpret_cast<Engine*>(glfwGetWindowUserPointer(window));
   if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
     engine->render_scene_.camera_->Rotate(
@@ -451,6 +570,7 @@ void Engine::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
 
 void Engine::ScrollCallback(GLFWwindow* window, double xoffset,
                             double yoffset) {
+  if (ImGui::GetIO().WantCaptureMouse) return;
   auto engine = reinterpret_cast<Engine*>(glfwGetWindowUserPointer(window));
   engine->render_scene_.camera_->Scale(float(yoffset));
 }
