@@ -33,8 +33,8 @@ void Camera::InitData(const float aspect, const float fovy, const float z_near,
 
 void Camera::Rotate(const float dx, const float dy) {
   static constexpr float rotate_ratio = 0.25f * PI_ / 180.0f;
-  phi_ += rotate_ratio * dx;
-  theta_ += rotate_ratio * dy;
+  phi_ -= rotate_ratio * dx;
+  theta_ -= rotate_ratio * dy;
   phi_ = std::fmod(phi_, 2.0f * PI_);
   if (phi_ < 0.0f) phi_ += 2.0f * PI_;
   theta_ = std::clamp(theta_, 0.1f, PI_ - 0.1f);

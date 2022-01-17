@@ -3,22 +3,22 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <array>
 #include <cmath>
 #include <vector>
-#include <array>
 
 #include "camera/camera.h"
 #include "device/device.h"
 #include "device/physicaldevice.h"
 #include "framebuffer/framebuffer.h"
 #include "mathtype.h"
-#include "scene/scene.h"
-#include "renderscene/renderscene.h"
 #include "pipeline/pipeline.h"
 #include "renderpass/renderpass.h"
+#include "renderscene/renderscene.h"
+#include "scene/scene.h"
+#include "steptimer.h"
 #include "surface/swapchain.h"
 #include "vkext/debugutils.h"
-#include "steptimer.h"
 
 namespace Rain {
 class Engine {
@@ -40,12 +40,14 @@ class Engine {
       "VK_LAYER_KHRONOS_validation"};
   const std::vector<const char*> instance_extensions_ = {};
 
-  uint32_t width_ = 800;
-  uint32_t height_ = 600;
+  uint32_t width_ = 1080;
+  uint32_t height_ = 720;
   bool window_resized_ = false;
 
   Scene scene_;
   RenderScene render_scene_;
+
+  Vec2d last_mouse_pos_;
 
   Engine();
   void Init();
@@ -58,5 +60,12 @@ class Engine {
   void CleanUpSwapChain();
   void RecreateSwapChain();
   static void WindowResizeCallback(GLFWwindow* window, int width, int height);
+  static void KeyCallback(GLFWwindow* window, int key, int scancode, int action,
+                          int mods);
+  static void MouseButtonCallback(GLFWwindow* window, int button, int action,
+                                  int mods);
+  static void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
+  static void ScrollCallback(GLFWwindow* window, double xoffset,
+                             double yoffset);
 };
 };  // namespace Rain

@@ -18,12 +18,23 @@ void Engine::Init() {
   {  // init window
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    // glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     window_ =
         glfwCreateWindow(width_, height_, "Rain Engine", nullptr, nullptr);
+    float x_scale, y_scale;
+    glfwGetWindowContentScale(window_, &x_scale, &y_scale);
+    width_ *= x_scale;
+    height_ *= y_scale;
+    glfwSetWindowSize(window_, width_, height_);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+    glfwShowWindow(window_);
+
     glfwSetWindowUserPointer(window_, this);
-    glfwSetFramebufferSizeCallback(window_, Engine::WindowResizeCallback);
+    glfwSetFramebufferSizeCallback(window_, WindowResizeCallback);
+    glfwSetKeyCallback(window_, KeyCallback);
+    glfwSetMouseButtonCallback(window_, MouseButtonCallback);
+    glfwSetCursorPosCallback(window_, CursorPosCallback);
+    glfwSetScrollCallback(window_, ScrollCallback);
   }
 
   if (enable_validation_layers_) {
@@ -135,8 +146,7 @@ void Engine::Init() {
 
   {  // scene
     scene_.Init();
-    if (render_scene_.Init(device_, swap_chain_, &scene_) !=
-        VK_SUCCESS) {
+    if (render_scene_.Init(device_, swap_chain_, &scene_) != VK_SUCCESS) {
       CleanUp();
       exit(1);
     }
@@ -144,8 +154,7 @@ void Engine::Init() {
 
   {  // create render pass
     render_pass_ = new RenderPass;
-    if (render_pass_->Init(device_, swap_chain_->image_format_) !=
-        VK_SUCCESS) {
+    if (render_pass_->Init(device_, swap_chain_->image_format_) != VK_SUCCESS) {
       CleanUp();
       exit(1);
     } else {
@@ -181,8 +190,6 @@ void Engine::Init() {
 
   // allocate and record command buffers
   device_->AllocateCommandBuffers(swap_chain_);
-
-  timer_.Reset();
 }
 
 void Engine::DrawFrame() {
@@ -234,7 +241,9 @@ void Engine::DrawFrame() {
 }
 
 void Engine::MainLoop() {
+  timer_.Reset();
   while (!glfwWindowShouldClose(window_)) {
+    timer_.Tick();
     glfwPollEvents();
     DrawFrame();
   }
@@ -365,8 +374,7 @@ void Engine::RecreateSwapChain() {
   }
 
   {  // create render pass
-    if (render_pass_->Init(device_, swap_chain_->image_format_) !=
-        VK_SUCCESS) {
+    if (render_pass_->Init(device_, swap_chain_->image_format_) != VK_SUCCESS) {
       CleanUp();
       exit(1);
     }
@@ -403,4 +411,47 @@ void Engine::WindowResizeCallback(GLFWwindow* window, int width, int height) {
   engine->window_resized_ = true;
 }
 
+void Engine::KeyCallback(GLFWwindow* window, int key, int scancode, int action,
+                         int mods) {
+  if (action == GLFW_PRESS) {
+    switch (key) {
+      case GLFW_KEY_ESCAPE:
+        glfwSetWindowShouldClose(window, true);
+        break;
+      default:
+        break;
+    }
+  }
+  return;
+}
+
+void Engine::MouseButtonCallback(GLFWwindow* window, int button, int action,
+                                 int mods) {
+  auto engine = reinterpret_cast<Engine*>(glfwGetWindowUserPointer(window));
+  if (action == GLFW_PRESS) {
+    glfwGetCursorPos(window, &engine->last_mouse_pos_.x(),
+                     &engine->last_mouse_pos_.y());
+  }
+}
+
+void Engine::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
+  auto engine = reinterpret_cast<Engine*>(glfwGetWindowUserPointer(window));
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+    engine->render_scene_.camera_->Rotate(
+        float(xpos - engine->last_mouse_pos_.x()),
+        float(ypos - engine->last_mouse_pos_.y()));
+  } else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) ==
+             GLFW_PRESS) {
+    engine->render_scene_.camera_->Translate(
+        float(xpos - engine->last_mouse_pos_.x()),
+        float(ypos - engine->last_mouse_pos_.y()));
+  }
+  engine->last_mouse_pos_ << xpos, ypos;
+}
+
+void Engine::ScrollCallback(GLFWwindow* window, double xoffset,
+                            double yoffset) {
+  auto engine = reinterpret_cast<Engine*>(glfwGetWindowUserPointer(window));
+  engine->render_scene_.camera_->Scale(float(yoffset));
+}
 };  // namespace Rain

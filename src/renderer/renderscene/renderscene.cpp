@@ -161,6 +161,7 @@ VkResult RenderScene::InitUniform(Device* device, SwapChain* swap_chain) {
 }
 
 void RenderScene::UpdateUniform(VkDevice device, uint32_t image_index) {
+  camera_->UpdateData();
   void* data;
   GlobalUniformData global_data;
   global_data.proj_view = camera_->proj_view_;
