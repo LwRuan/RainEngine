@@ -1,5 +1,8 @@
 #pragma once
 
+#include <spdlog/spdlog.h>
+
+#include <string>
 #include <vector>
 
 #include "mathtype.h"
@@ -9,8 +12,8 @@ struct Material {
   Vec3f Ka_ = Vec3f(0.2f, 0.2f, 0.2f);  // ambient color
   Vec3f Kd_ = Vec3f(0.8f, 0.8f, 0.8f);  // diffuse color
   Vec3f Ks_ = Vec3f(1.0f, 1.0f, 1.0f);  // specular color
-  float d_ = 1.0f;   // non-transparency
-  float Ns_ = 0.0f;  // shininess
+  float d_ = 1.0f;                      // non-transparency
+  float Ns_ = 0.0f;                     // shininess
 };
 
 class Object {
@@ -24,11 +27,13 @@ class Object {
   uint32_t n_elevert_ = 3;  // 3 for triangle, 4 for tet
   uint32_t* indices_ = nullptr;
   uint64_t n_surfidx_;
+  uint64_t n_face_;
   uint32_t* surface_indices_ = nullptr;
   Material material_;
   Mat4f transformation_;
 
-  void Init();
+  bool Init(const std::string& obj_file, const Mat3f& rot, const Vec3f& trans,
+            float scale);
   void Destroy();
 };
 
