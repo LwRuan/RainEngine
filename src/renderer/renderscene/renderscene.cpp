@@ -162,6 +162,9 @@ VkResult RenderScene::InitUniform(Device* device, SwapChain* swap_chain) {
 
 void RenderScene::UpdateUniform(VkDevice device, uint32_t image_index) {
   camera_->UpdateData();
+  float theta = light_x_angle_ / 180 * PI_;
+  float phi = light_y_angle_ / 180 * PI_;
+  light_direction_ = -Vec3f(-cos(phi)*cos(theta), sin(phi), cos(phi)*sin(theta));
   void* data;
   GlobalUniformData global_data;
   global_data.proj_view = camera_->proj_view_;

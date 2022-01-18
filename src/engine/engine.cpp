@@ -23,10 +23,9 @@ void Engine::Init() {
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     window_ =
         glfwCreateWindow(width_, height_, "Rain Engine", nullptr, nullptr);
-    float x_scale, y_scale;
-    glfwGetWindowContentScale(window_, &x_scale, &y_scale);
-    width_ *= x_scale;
-    height_ *= y_scale;
+    glfwGetWindowContentScale(window_, &width_scale_, &height_scale_);
+    width_ *= width_scale_;
+    height_ *= height_scale_;
     glfwSetWindowSize(window_, width_, height_);
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
     glfwShowWindow(window_);
@@ -240,6 +239,10 @@ VkResult Engine::InitImGui() {
                                                   present_queue_family);
   ImGui::CreateContext();
   ImGui::StyleColorsDark();
+  ImGuiIO& io = ImGui::GetIO();
+  io.Fonts->AddFontFromFileTTF("../ext/imgui/misc/fonts/ProggyClean.ttf",
+                               int(13 * width_scale_));
+  ImGui::GetStyle().ScaleAllSizes(width_scale_);
   ImGui_ImplGlfw_InitForVulkan(window_, true);
   ImGui_ImplVulkan_InitInfo init_info = {};
   init_info.Instance = instance_;
@@ -263,7 +266,16 @@ void Engine::DrawFrame() {
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
-  ImGui::ShowDemoWindow();
+  // ImGui::ShowDemoWindow();
+  ImGui::Begin("Configurations", nullptr, ImGuiWindowFlags_None);
+  if (ImGui::CollapsingHeader("Renderer")) {
+    ImGui::Text("Light");
+    ImGui::SliderFloat("x angle", &render_scene_.light_x_angle_, 0.0f, 180.0f,
+                       "%.0f degree");
+    ImGui::SliderFloat("y angle", &render_scene_.light_y_angle_, 0.0f, 90.0f,
+                       "%.0f degree");
+  }
+  ImGui::End();
   ImGui::Render();
   uint32_t image_index = swap_chain_->BeginFrame(window_resized_);
   while (window_resized_) {
@@ -451,6 +463,12 @@ void Engine::CleanUpSwapChain() {
 }
 
 void Engine::RecreateSwapChain() {
+  int width = 0, height = 0;
+  glfwGetFramebufferSize(window_, &width, &height);
+  while (width == 0 || height == 0) {
+    glfwGetFramebufferSize(window_, &width, &height);
+    glfwWaitEvents();
+  }
   vkDeviceWaitIdle(device_->device_);
   CleanUpSwapChain();
   physical_device_->swap_chain_support_details_ =

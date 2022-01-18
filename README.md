@@ -2,7 +2,7 @@
 
 ![](assets/teaser.png)
 
-A minimum Vulkan render example inspired by [Vulkan Tutorial](https://vulkan-tutorial.com/) and [GamePhysicsWeekend](https://github.com/gamephysicsweekend/VulkanRenderer).
+A minimum Vulkan renderer example inspired by [Vulkan Tutorial](https://vulkan-tutorial.com/) and [GamePhysicsWeekend](https://github.com/gamephysicsweekend/VulkanRenderer).
 
 ## Requirements
 

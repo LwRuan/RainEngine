@@ -57,7 +57,9 @@ class RenderScene {
   Camera* camera_ = nullptr;
   Vec3f ambient_light_= Vec3f(0.5f, 0.5f, 0.5f);
   Vec3f directional_light_ = Vec3f(1.0f, 1.0f, 1.0f);
-  Vec3f light_direction_ = Vec3f(-1.0f, -1.0f, -1.0f).normalized();
+  Vec3f light_direction_;
+  float light_x_angle_ = 45.0;
+  float light_y_angle_ = 45.0;
 
   std::vector<Buffer> global_ubs_;  // per swap image
   std::vector<Buffer> model_ubs_; // per swap image

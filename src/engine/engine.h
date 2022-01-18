@@ -47,6 +47,8 @@ class Engine {
 
   uint32_t width_ = 1080;
   uint32_t height_ = 720;
+  float width_scale_;
+  float height_scale_;
   bool window_resized_ = false;
 
   Scene scene_;
