@@ -577,7 +577,7 @@ void Engine::CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
     engine->render_scene_.camera_->Rotate(
         float(xpos - engine->last_mouse_pos_.x()),
         float(ypos - engine->last_mouse_pos_.y()));
-  } else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) ==
+  } else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) ==
              GLFW_PRESS) {
     engine->render_scene_.camera_->Translate(
         float(xpos - engine->last_mouse_pos_.x()),
